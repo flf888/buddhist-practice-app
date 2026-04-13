@@ -55,7 +55,7 @@ export default function ChantPage() {
       <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl p-5 text-white">
         <div className="flex items-center gap-3 mb-2">
           <Sparkles className="w-6 h-6" />
-          <h1 className="text-xl font-bold">念咒修行</h1>
+          <h1 className="text-xl font-bold">持咒修行</h1>
         </div>
         <p className="text-sm opacity-90">持咒精进，消除业障</p>
       </div>
@@ -168,7 +168,7 @@ export default function ChantPage() {
 
       {/* Stats */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-800 mb-3">念咒统计</h3>
+        <h3 className="font-semibold text-gray-800 mb-3">持咒统计</h3>
         <div className="grid grid-cols-3 gap-3">
           <div className="p-3 bg-purple-50 rounded-xl text-center">
             <p className="text-2xl font-bold text-purple-600">{completedSets}</p>
