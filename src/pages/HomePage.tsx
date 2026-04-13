@@ -1,37 +1,141 @@
 import { useState } from 'react'
-import { Repeat, BookOpen, Heart, Sparkles, Play, ChevronRight, Bell } from 'lucide-react'
+import { ChevronRight, CheckCircle, Circle, Bell, Sun, Moon } from 'lucide-react'
 
 interface HomePageProps {
   onNavigate: (tab: 'home' | 'practice' | 'sutra' | 'festival' | 'profile' | 'chant' | 'baichan') => void
 }
 
-const todayStats = {
-  nianfo: 3200,
-  nianfoGoal: 10000,
-  nianjing: 1,
-  nianzhou: 50,
-  baichan: 0,
-}
+const hour = new Date().getHours()
+const isMorning = hour >= 5 && hour < 12
+
+const morningSteps = [
+  {
+    id: 'lijing',
+    name: '礼敬',
+    desc: '南无本师释迦牟尼佛×3、南无阿弥陀佛×3',
+    tag: '准备',
+    color: 'from-amber-400 to-yellow-500',
+    nav: null,
+  },
+  {
+    id: 'sutra',
+    name: '诵经',
+    desc: '《般若波罗蜜多心经》× 1 遍',
+    tag: '核心',
+    color: 'from-blue-500 to-indigo-500',
+    nav: 'sutra' as const,
+  },
+  {
+    id: 'chant',
+    name: '持咒',
+    desc: '《大悲咒》3 / 7 / 21 遍任选',
+    tag: '持咒',
+    color: 'from-purple-500 to-pink-500',
+    nav: 'chant' as const,
+  },
+  {
+    id: 'practice',
+    name: '念佛',
+    desc: '南无阿弥陀佛 10 / 108 遍任选',
+    tag: '念佛',
+    color: 'from-orange-400 to-red-500',
+    nav: 'practice' as const,
+  },
+  {
+    id: 'baichan',
+    name: '忏悔',
+    desc: '念诵忏悔偈 × 3 遍',
+    tag: '忏悔',
+    color: 'from-rose-500 to-red-600',
+    nav: 'baichan' as const,
+  },
+  {
+    id: 'huixiang',
+    name: '回向',
+    desc: '愿以此功德，普及于一切',
+    tag: '结束',
+    color: 'from-emerald-400 to-teal-500',
+    nav: null,
+  },
+]
+
+const eveningSteps = [
+  {
+    id: 'lijing',
+    name: '礼敬',
+    desc: '南无阿弥陀佛 × 3 遍',
+    tag: '准备',
+    color: 'from-amber-400 to-yellow-500',
+    nav: null,
+  },
+  {
+    id: 'sutra',
+    name: '诵经',
+    desc: '《佛说阿弥陀经》× 1 遍（可换《心经》）',
+    tag: '核心',
+    color: 'from-blue-500 to-indigo-500',
+    nav: 'sutra' as const,
+  },
+  {
+    id: 'chant',
+    name: '持咒',
+    desc: '《往生咒》3 / 7 / 21 遍任选',
+    tag: '持咒',
+    color: 'from-purple-500 to-pink-500',
+    nav: 'chant' as const,
+  },
+  {
+    id: 'baichan',
+    name: '忏悔',
+    desc: '念诵忏悔偈 × 3 遍',
+    tag: '忏悔',
+    color: 'from-rose-500 to-red-600',
+    nav: 'baichan' as const,
+  },
+  {
+    id: 'practice',
+    name: '念佛',
+    desc: '南无阿弥陀佛 108 遍',
+    tag: '念佛',
+    color: 'from-orange-400 to-red-500',
+    nav: 'practice' as const,
+  },
+  {
+    id: 'huixiang',
+    name: '回向',
+    desc: '愿消三障诸烦恼，愿得智慧真明了',
+    tag: '结束',
+    color: 'from-emerald-400 to-teal-500',
+    nav: null,
+  },
+]
 
 const festivals = [
   { name: '观音诞辰', days: 12, icon: '🧘' },
   { name: '地藏王菩萨日', days: 18, icon: '🙏' },
 ]
 
-const features = [
-  { id: 'nianfo', name: '念佛', desc: '南无阿弥陀佛', count: todayStats.nianfo, goal: todayStats.nianfoGoal, icon: Repeat, color: 'from-amber-500 to-orange-500' },
-  { id: 'nianjing', name: '念经', desc: '阿弥陀经', count: todayStats.nianjing, goal: 2, icon: BookOpen, color: 'from-blue-500 to-indigo-500' },
-  { id: 'nianzhou', name: '念咒', desc: '六字大明咒', count: todayStats.nianzhou, goal: 108, icon: Sparkles, color: 'from-purple-500 to-pink-500' },
-  { id: 'baichan', name: '拜忏', desc: '消灾祈福', count: todayStats.baichan, goal: 1, icon: Heart, color: 'from-red-500 to-rose-500' },
-]
-
 export default function HomePage({ onNavigate }: HomePageProps) {
+  const [courseType, setCourseType] = useState<'morning' | 'evening'>(isMorning ? 'morning' : 'evening')
+  const [completedSteps, setCompletedSteps] = useState<string[]>([])
   const [showReminder, setShowReminder] = useState(true)
+
+  const steps = courseType === 'morning' ? morningSteps : eveningSteps
+  const completedCount = completedSteps.length
+  const totalSteps = steps.length
+
+  const toggleStep = (id: string) => {
+    setCompletedSteps((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    )
+  }
+
+  const isAllDone = completedCount === totalSteps
 
   return (
     <div className="px-4 py-4 space-y-4">
-      {/* Reminder Banner */}
-      {showReminder && (
+      {/* 今日提醒 */}
+      {showReminder && !isAllDone && (
         <div className="bg-gradient-to-r from-[#c9a227]/10 to-[#c9a227]/5 border border-[#c9a227]/30 rounded-2xl p-4">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3">
@@ -39,101 +143,127 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 <Bell className="w-5 h-5 text-[#c9a227]" />
               </div>
               <div>
-                <h3 className="font-semibold text-[#5c4033]">今日功课提醒</h3>
-                <p className="text-sm text-gray-600 mt-1">您今日还有念佛6800遍待完成，继续加油！</p>
+                <h3 className="font-semibold text-[#5c4033]">
+                  {courseType === 'morning' ? '早课提醒' : '晚课提醒'}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  今日{courseType === 'morning' ? '早课' : '晚课'}还未完成，请抽出 10–20 分钟修行。
+                </p>
               </div>
             </div>
-            <button onClick={() => setShowReminder(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            <button onClick={() => setShowReminder(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
           </div>
-          <button
-            onClick={() => onNavigate('practice')}
-            className="mt-3 w-full bg-[#c9a227] text-white py-2.5 rounded-xl font-medium flex items-center justify-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            开始修行
-          </button>
         </div>
       )}
 
-      {/* Progress Ring */}
+      {/* 全部完成提示 */}
+      {isAllDone && (
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-4 text-white flex items-center gap-4">
+          <span className="text-3xl">🎉</span>
+          <div>
+            <h3 className="font-bold text-lg">今日{courseType === 'morning' ? '早课' : '晚课'}已圆满！</h3>
+            <p className="text-sm opacity-90">愿以此功德，普及于一切众生</p>
+          </div>
+        </div>
+      )}
+
+      {/* 早晚课切换 + 进度 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">今日修行进度</h2>
-        <div className="flex items-center justify-center gap-8">
-          <div className="relative">
-            <svg className="w-28 h-28 transform -rotate-90">
-              <circle cx="56" cy="56" r="48" stroke="#f0ebe3" strokeWidth="8" fill="none" />
-              <circle
-                cx="56"
-                cy="56"
-                r="48"
-                stroke="#c9a227"
-                strokeWidth="8"
-                fill="none"
-                strokeDasharray={301.59}
-                strokeDashoffset={301.59 * (1 - todayStats.nianfo / todayStats.nianfoGoal)}
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold text-[#5c4033]">{Math.round(todayStats.nianfo / todayStats.nianfoGoal * 100)}%</span>
-              <span className="text-xs text-gray-500">念佛进度</span>
-            </div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">今日功课</h2>
+          <div className="flex bg-[#faf8f5] rounded-xl p-1 gap-1">
+            <button
+              onClick={() => { setCourseType('morning'); setCompletedSteps([]) }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                courseType === 'morning'
+                  ? 'bg-[#c9a227] text-white shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              <Sun className="w-4 h-4" />早课
+            </button>
+            <button
+              onClick={() => { setCourseType('evening'); setCompletedSteps([]) }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                courseType === 'evening'
+                  ? 'bg-[#8b2323] text-white shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              <Moon className="w-4 h-4" />晚课
+            </button>
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <span className="text-sm text-gray-600">念佛 {todayStats.nianfo}/{todayStats.nianfoGoal}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="text-sm text-gray-600">念经 {todayStats.nianjing}/{2}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-              <span className="text-sm text-gray-600">念咒 {todayStats.nianzhou}/{108}</span>
-            </div>
+        </div>
+
+        {/* 进度条 */}
+        <div className="mb-4">
+          <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+            <span>已完成 {completedCount} / {totalSteps} 步</span>
+            <span>{Math.round(completedCount / totalSteps * 100)}%</span>
           </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-[#c9a227] to-[#8b2323] rounded-full transition-all duration-500"
+              style={{ width: `${(completedCount / totalSteps) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* 步骤列表 */}
+        <div className="space-y-2">
+          {steps.map((step, idx) => {
+            const done = completedSteps.includes(step.id)
+            return (
+              <div
+                key={step.id}
+                className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                  done ? 'bg-green-50 border border-green-100' : 'bg-[#faf8f5] border border-transparent'
+                }`}
+              >
+                {/* 步骤序号 */}
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                  done
+                    ? 'bg-green-500 text-white'
+                    : `bg-gradient-to-br ${step.color} text-white`
+                }`}>
+                  {done ? '✓' : idx + 1}
+                </div>
+
+                {/* 内容 */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold text-sm ${done ? 'text-green-700 line-through' : 'text-gray-800'}`}>
+                      {step.name}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 text-gray-500 rounded-full">{step.tag}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5 truncate">{step.desc}</p>
+                </div>
+
+                {/* 操作区 */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {step.nav && !done && (
+                    <button
+                      onClick={() => onNavigate(step.nav!)}
+                      className="text-xs text-[#8b2323] bg-[#8b2323]/10 px-2 py-1 rounded-lg flex items-center gap-0.5"
+                    >
+                      进入<ChevronRight className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button onClick={() => toggleStep(step.id)}>
+                    {done
+                      ? <CheckCircle className="w-5 h-5 text-green-500" />
+                      : <Circle className="w-5 h-5 text-gray-300" />
+                    }
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        {features.map((feature) => {
-          const Icon = feature.icon
-          const progress = Math.round((feature.count / feature.goal) * 100)
-          return (
-            <button
-              key={feature.id}
-              onClick={() => {
-                if (feature.id === 'nianfo') onNavigate('practice')
-                else if (feature.id === 'nianzhou') onNavigate('chant')
-                else if (feature.id === 'nianjing') onNavigate('sutra')
-                else if (feature.id === 'baichan') onNavigate('baichan')
-              }}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-shadow"
-            >
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-3`}>
-                <Icon className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="font-semibold text-gray-800">{feature.name}</h3>
-              <p className="text-xs text-gray-500 mt-0.5">{feature.desc}</p>
-              <div className="mt-3">
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-500">{progress}%</span>
-                </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full bg-gradient-to-r ${feature.color} rounded-full transition-all`}
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Upcoming Festivals */}
+      {/* 即将到来的节日 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800">即将到来的节日</h2>
@@ -162,12 +292,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         </div>
       </div>
 
-      {/* Daily Quote */}
+      {/* 每日法语 */}
       <div className="bg-gradient-to-br from-[#8b2323] to-[#a83232] rounded-2xl p-5 text-white">
-        <p className="text-lg leading-relaxed font-light italic">
-          "念佛一声，罪灭河沙；念佛十声，福报无量。"
+        <p className="text-base leading-relaxed font-light italic">
+          "早晚课是修行的根本，一日不旷，功德无量。"
         </p>
-        <p className="text-sm opacity-80 mt-3">—《大势至菩萨念佛圆通章》</p>
+        <p className="text-sm opacity-70 mt-3">—— 在家修行准则</p>
       </div>
     </div>
   )
