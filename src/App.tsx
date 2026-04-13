@@ -17,9 +17,9 @@ function App() {
   const tabs = [
     { id: 'home' as TabType, label: '首页', icon: Home },
     { id: 'practice' as TabType, label: '念佛', icon: Repeat },
-    { id: 'chant' as TabType, label: '念咒', icon: Sparkles },
+    { id: 'chant' as TabType, label: '持咒', icon: Sparkles },
     { id: 'baichan' as TabType, label: '拜忏', icon: Heart },
-    { id: 'sutra' as TabType, label: '念经', icon: BookOpen },
+    { id: 'sutra' as TabType, label: '诵经', icon: BookOpen },
     { id: 'profile' as TabType, label: '我的', icon: User },
   ]
 
