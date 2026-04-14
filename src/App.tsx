@@ -50,7 +50,7 @@ function App() {
       <header className="bg-gradient-to-r from-[#8b2323] to-[#a83232] text-white px-4 py-4 shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">🙏 佛光普照</h1>
+            <h1 className="text-xl font-bold">🙏 早晚课</h1>
             <p className="text-sm opacity-90">修行之路 · 每日精进</p>
           </div>
           <div className="flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-full">

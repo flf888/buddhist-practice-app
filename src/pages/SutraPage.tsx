@@ -1,96 +1,173 @@
 import { useState } from 'react'
-import { Play, Pause, ChevronRight, CheckCircle } from 'lucide-react'
+import { BookOpen, ChevronRight, Flame, Play, Pause } from 'lucide-react'
+import SmartCountdown from '../components/SmartCountdown'
+import type { PracticeTemplate } from '../components/SmartCountdown'
 
 const sutras = [
   {
     id: 1,
-    name: '阿弥陀经',
-    sanskrit: 'Amituo Jing',
-    description: '净土宗核心经典，讲述西方极乐世界的殊胜功德',
+    name: '心经',
+    sanskrit: '般若波罗蜜多心经',
+    description: '大乘佛教核心经典，般若智慧的精华',
+    quantity: 1,
+    unit: '部',
+    durationSeconds: 300,
     chapters: 1,
-    duration: '15分钟',
-    completions: 156,
-    icon: '🪷',
-    color: 'from-amber-500 to-orange-500',
+    completions: 234,
+    icon: '✨',
+    color: '#7c3aed',
+    bgColor: 'from-purple-500 to-pink-500',
     isHot: true,
+    text: `观自在菩萨，行深般若波罗蜜多时，照见五蕴皆空，度一切苦厄。
+
+舍利子，色不异空，空不异色，色即是空，空即是色，受想行识，亦复如是。
+
+舍利子，是诸法空相，不生不灭，不垢不净，不增不减。是故空中无色，无受想行识，无眼耳鼻舌身意，无色声香味触法，无眼界，乃至无意识界。
+
+无无明，亦无无明尽，乃至无老死，亦无老死尽。无苦集灭道，无智亦无得。以无所得故，菩提萨埵，依般若波罗蜜多故，心无挂碍，无挂碍故，无有恐怖，远离颠倒梦想。`,
   },
   {
     id: 2,
-    name: '观世音菩萨普门品',
-    sanskrit: 'Guanyin Pumen',
-    description: '《法华经》重要章节，赞叹观世音菩萨救苦救难功德',
+    name: '阿弥陀经',
+    sanskrit: '佛说阿弥陀经',
+    description: '净土宗核心经典，讲述西方极乐世界',
+    quantity: 1,
+    unit: '部',
+    durationSeconds: 900,
     chapters: 1,
-    duration: '10分钟',
-    completions: 89,
-    icon: '🧘',
-    color: 'from-blue-500 to-indigo-500',
-    isHot: false,
+    completions: 156,
+    icon: '🪷',
+    color: '#ea580c',
+    bgColor: 'from-amber-500 to-orange-500',
+    isHot: true,
+    text: `如是我闻，一时佛在舍卫国，祇树给孤独园，与大比丘僧千二百五十人俱。
+
+尔时佛告长老舍利弗，从是西方，过十万亿佛土，有世界名曰极乐，其土有佛，号阿弥陀，今现在说法。
+
+舍利弗，彼土何故名为极乐？其国众生，无有众苦，但受诸乐，故名极乐。`,
   },
   {
     id: 3,
-    name: '心经',
-    sanskrit: 'Xin Jing',
-    description: '般若波罗蜜多心经，大乘佛教核心经典',
-    chapters: 1,
-    duration: '5分钟',
-    completions: 234,
-    icon: '✨',
-    color: 'from-purple-500 to-pink-500',
+    name: '金刚经',
+    sanskrit: '金刚般若波罗蜜经',
+    description: '禅宗核心经典，破除一切执着',
+    quantity: 1,
+    unit: '部',
+    durationSeconds: 1200,
+    chapters: 32,
+    completions: 112,
+    icon: '⚔️',
+    color: '#475569',
+    bgColor: 'from-slate-600 to-gray-700',
     isHot: true,
+    text: `如是我闻，一时佛在舍卫国，祇树给孤独园，与大比丘众千二百五十人俱。
+
+尔时世尊食时，着衣持钵，入舍卫大城乞食。于其城中次第乞已，还至本处。饭食讫，收衣钵，洗足已，敷座而坐。`,
   },
   {
     id: 4,
     name: '地藏经',
-    sanskrit: 'Dizang Jing',
-    description: '地藏菩萨本愿经，讲述地藏菩萨救度地狱众生',
+    sanskrit: '地藏菩萨本愿经',
+    description: '地藏菩萨救度地狱众生的大愿经典',
+    quantity: 1,
+    unit: '部',
+    durationSeconds: 3600,
     chapters: 13,
-    duration: '60分钟',
     completions: 45,
     icon: '🙏',
-    color: 'from-green-500 to-teal-500',
+    color: '#16a34a',
+    bgColor: 'from-green-600 to-teal-600',
     isHot: false,
+    text: `尔时释迦牟尼佛告文殊师利法王子菩萨摩诃萨：汝观是一切诸佛菩萨善根，一切世间天、人、阿修罗，闻汝所说，皆得闻识。`,
   },
   {
     id: 5,
-    name: '药师经',
-    sanskrit: 'Yaoshi Jing',
-    description: '药师琉璃光如来本愿功德经，侧重消灾延寿',
-    chapters: 12,
-    duration: '45分钟',
-    completions: 67,
-    icon: '💊',
-    color: 'from-red-500 to-rose-500',
+    name: '普门品',
+    sanskrit: '观世音菩萨普门品',
+    description: '《法华经》章节，赞叹观世音菩萨救苦救难',
+    quantity: 1,
+    unit: '品',
+    durationSeconds: 600,
+    chapters: 1,
+    completions: 89,
+    icon: '🧘',
+    color: '#2563eb',
+    bgColor: 'from-blue-600 to-indigo-600',
     isHot: false,
+    text: `尔时无尽意菩萨即从座起，偏袒右肩，合掌向佛，而作是言：世尊，观世音菩萨以何因缘名观世音？`,
   },
   {
     id: 6,
-    name: '金刚经',
-    sanskrit: 'Jingang Jing',
-    description: '金刚般若波罗蜜经，禅宗核心经典',
-    chapters: 32,
-    duration: '30分钟',
-    completions: 112,
-    icon: '⚔️',
-    color: 'from-gray-600 to-gray-800',
-    isHot: true,
+    name: '药师经',
+    sanskrit: '药师琉璃光如来本愿功德经',
+    description: '消灾延寿，药师如来的慈悲愿力',
+    quantity: 1,
+    unit: '部',
+    durationSeconds: 2700,
+    chapters: 12,
+    completions: 67,
+    icon: '💊',
+    color: '#dc2626',
+    bgColor: 'from-red-600 to-rose-600',
+    isHot: false,
+    text: `如是我闻，一时薄伽梵游化诸国，至广严城住乐音树下，与大苾刍众八千人俱。`,
+  },
+]
+
+const smartTemplates: PracticeTemplate[] = [
+  {
+    id: 'xin-jing',
+    name: '诵《心经》1 部',
+    subtitle: '般若波罗蜜多心经 · 约5分钟',
+    quantity: 1,
+    unit: '部',
+    durationSeconds: 300,
+    audioGuide: '开始诵经，般若波罗蜜多心经',
+    color: '#7c3aed',
+    bgColor: 'from-purple-500 to-pink-500',
+  },
+  {
+    id: 'amituo-jing',
+    name: '诵《阿弥陀经》1 部',
+    subtitle: '佛说阿弥陀经 · 约15分钟',
+    quantity: 1,
+    unit: '部',
+    durationSeconds: 900,
+    audioGuide: '开始诵经，南无阿弥陀佛',
+    color: '#ea580c',
+    bgColor: 'from-amber-500 to-orange-500',
+  },
+  {
+    id: 'jingang-jing',
+    name: '诵《金刚经》1 部',
+    subtitle: '金刚般若波罗蜜经 · 约20分钟',
+    quantity: 1,
+    unit: '部',
+    durationSeconds: 1200,
+    audioGuide: '开始诵经，金刚经',
+    color: '#475569',
+    bgColor: 'from-slate-600 to-gray-700',
   },
 ]
 
 export default function SutraPage() {
   const [selectedSutra, setSelectedSutra] = useState<typeof sutras[0] | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [completedSutras, setCompletedSutras] = useState<number[]>([1, 3])
+  const [showSmart, setShowSmart] = useState(false)
+  const [completedToday, setCompletedToday] = useState(1)
+  const [completedWeek, setCompletedWeek] = useState(5)
+  const [completedTotal, setCompletedTotal] = useState(23)
 
-  const toggleComplete = (id: number) => {
-    setCompletedSutras((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    )
+  const handleComplete = () => {
+    setCompletedToday((prev) => prev + 1)
+    setCompletedWeek((prev) => prev + 1)
+    setCompletedTotal((prev) => prev + 1)
   }
 
+  // 经文详情页
   if (selectedSutra) {
     return (
       <div className="px-4 py-4 space-y-4">
-        {/* Back Button */}
         <button
           onClick={() => setSelectedSutra(null)}
           className="flex items-center gap-2 text-[#8b2323] font-medium"
@@ -99,171 +176,164 @@ export default function SutraPage() {
           返回经文列表
         </button>
 
-        {/* Sutra Header */}
-        <div className={`bg-gradient-to-br ${selectedSutra.color} rounded-2xl p-6 text-white`}>
-          <div className="flex items-center gap-3 mb-4">
+        {/* 经文头部 */}
+        <div className={`bg-gradient-to-br ${selectedSutra.bgColor} rounded-2xl p-6 text-white`}>
+          <div className="flex items-center gap-3 mb-3">
             <span className="text-4xl">{selectedSutra.icon}</span>
             <div>
               <h1 className="text-2xl font-bold">{selectedSutra.name}</h1>
-              <p className="text-sm opacity-90">{selectedSutra.sanskrit}</p>
+              <p className="text-sm opacity-80">{selectedSutra.sanskrit}</p>
             </div>
           </div>
           <p className="text-sm opacity-90 leading-relaxed">{selectedSutra.description}</p>
         </div>
 
-        {/* Sutra Content */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800">经文内容</h2>
-            <button
-              onClick={() => toggleComplete(selectedSutra.id)}
-              className={`flex items-center gap-1 text-sm ${
-                completedSutras.includes(selectedSutra.id)
-                  ? 'text-green-600'
-                  : 'text-gray-500'
-              }`}
-            >
-              <CheckCircle className={`w-4 h-4 ${completedSutras.includes(selectedSutra.id) ? 'fill-green-100' : ''}`} />
-              {completedSutras.includes(selectedSutra.id) ? '已完成' : '标记完成'}
-            </button>
-          </div>
-
+        {/* 诵读进度 */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-[#8b2323]" />
+            经文内容
+          </h3>
           <div className="bg-[#faf8f5] rounded-xl p-4 text-[#5c4033] leading-loose text-sm">
-            <p className="mb-4 text-center font-bold">南无本师释迦牟尼佛（三称）</p>
-            <p className="mb-4 text-center text-xs text-gray-500">开经偈</p>
-            <p className="mb-4 italic text-gray-600">
-              无上甚深微妙法，百千万劫难遭遇，<br />
-              我今见闻得受持，愿解如来真实义。
+            <p className="mb-3 text-center font-bold text-base">南无本师释迦牟尼佛（三称）</p>
+            <p className="mb-3 text-center text-xs text-gray-500">开经偈</p>
+            <p className="mb-3 italic text-gray-600 leading-loose">
+              无上甚深微妙法，百千万劫难遭遇，<br />我今见闻得受持，愿解如来真实义。
             </p>
-            <p className="mb-4 text-center text-xs text-gray-500">正文</p>
-            <p className="mb-4">
-              如是我闻，一时佛在舍卫国，祇树给孤独园，与大比丘僧千二百五十人俱，皆是大阿罗汉，众所知识。
-            </p>
-            <p className="mb-4">
-              尔时佛告长老舍利弗，从是西方，过十万亿佛土，有世界名曰极乐，其土有佛，号阿弥陀，今现在说法。
-            </p>
-            <p className="mb-4">
-              舍利弗，彼土何故名为极乐？其国众生，无有众苦，但受诸乐，故名极乐。
-            </p>
-            <p className="text-center text-xs text-gray-500 mt-6">... 经文省略 ...</p>
+            {selectedSutra.text.split('\n\n').map((para, i) => (
+              <p key={i} className="mb-3">{para}</p>
+            ))}
           </div>
         </div>
 
-        {/* Audio Player */}
+        {/* 音频播放器 */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-gray-600">诵读音频</span>
-            <span className="text-xs text-gray-400">00:00 / {selectedSutra.duration}</span>
-          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center text-white transition-all active:scale-95 ${
-                isPlaying
-                  ? 'bg-[#c9a227]'
-                  : 'bg-gradient-to-br from-[#8b2323] to-[#a83232]'
-              }`}
+              className="w-12 h-12 rounded-full bg-[#8b2323] text-white flex items-center justify-center shadow"
             >
               {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
             </button>
             <div className="flex-1">
-              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div className={`h-full bg-[#8b2323] rounded-full ${isPlaying ? 'animate-pulse' : ''}`} style={{ width: '35%' }} />
+              <p className="text-sm font-medium text-gray-800">诵读音频</p>
+              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1">
+                <div
+                  className={`h-full bg-[#8b2323] rounded-full ${isPlaying ? 'animate-pulse' : ''}`}
+                  style={{ width: '35%' }}
+                />
               </div>
             </div>
+            <span className="text-xs text-gray-400">05:20 / {Math.floor(selectedSutra.durationSeconds / 60)}分钟</span>
           </div>
         </div>
 
-        {/* Reading Mode */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <h3 className="font-semibold text-gray-800 mb-3">诵读模式</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <button className="p-3 bg-[#8b2323] text-white rounded-xl text-sm font-medium">
-              跟读模式
-            </button>
-            <button className="p-3 bg-[#faf8f5] text-gray-700 rounded-xl text-sm font-medium">
-              静读模式
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={() => setSelectedSutra(null)}
+          className="w-full py-3 text-gray-500 flex items-center justify-center gap-2"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" /> 返回选择
+        </button>
       </div>
     )
   }
 
+  // 列表页
   return (
     <div className="px-4 py-4 space-y-4">
-      {/* Header */}
+      {/* 头部 */}
       <div className="mb-2">
         <h1 className="text-xl font-bold text-gray-800">经典诵读</h1>
         <p className="text-sm text-gray-500 mt-1">持诵经典 · 智慧增长</p>
       </div>
 
-      {/* Today's Recommendation */}
-      <div className="bg-gradient-to-r from-[#c9a227]/10 to-[#c9a227]/5 border border-[#c9a227]/30 rounded-2xl p-4">
-        <p className="text-xs text-[#c9a227] font-medium mb-2">今日推荐</p>
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">🪷</span>
-          <div>
-            <h3 className="font-bold text-[#5c4033]">阿弥陀经</h3>
-            <p className="text-xs text-gray-500">净土五经之一 · 西方极乐</p>
-          </div>
-          <button className="ml-auto bg-[#8b2323] text-white px-3 py-1.5 rounded-lg text-sm">
-            开始诵读
-          </button>
+      {/* 智能诵经切换 */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setShowSmart(false)}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            !showSmart ? 'bg-[#8b2323] text-white' : 'bg-white border border-gray-200 text-gray-600'
+          }`}
+        >
+          经文列表
+        </button>
+        <button
+          onClick={() => setShowSmart(true)}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1 ${
+            showSmart ? 'bg-emerald-500 text-white' : 'bg-white border border-gray-200 text-gray-600'
+          }`}
+        >
+          {showSmart && <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />}
+          智能功课
+        </button>
+      </div>
+
+      {/* 智能功课模式 */}
+      {showSmart ? (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+            选择诵经功课 → 点击开始 → 自动倒计时 → 时间到即完成1部
+          </p>
+          <SmartCountdown
+            templates={smartTemplates}
+            onComplete={handleComplete}
+          />
         </div>
-      </div>
-
-      {/* Sutra List */}
-      <div className="space-y-3">
-        {sutras.map((sutra) => (
-          <button
-            key={sutra.id}
-            onClick={() => setSelectedSutra(sutra)}
-            className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start gap-3">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${sutra.color} flex items-center justify-center text-2xl`}>
-                {sutra.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-gray-800">{sutra.name}</h3>
-                  {sutra.isHot && (
-                    <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] rounded">热门</span>
-                  )}
-                  {completedSutras.includes(sutra.id) && (
-                    <CheckCircle className="w-4 h-4 text-green-500 fill-green-100" />
-                  )}
+      ) : (
+        <>
+          {/* 经文列表 */}
+          <div className="space-y-3">
+            {sutras.map((sutra) => (
+              <button
+                key={sutra.id}
+                onClick={() => setSelectedSutra(sutra)}
+                className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${sutra.bgColor} flex items-center justify-center text-2xl`}>
+                    {sutra.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-800">{sutra.name}</h3>
+                      {sutra.isHot && (
+                        <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] rounded">热门</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">{sutra.sanskrit}</p>
+                    <p className="text-xs text-gray-500 mt-1 truncate">{sutra.description}</p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                      <span>{sutra.chapters}品</span>
+                      <span>{Math.floor(sutra.durationSeconds / 60)}分钟</span>
+                      <span>{sutra.completions}人诵读</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">{sutra.sanskrit}</p>
-                <p className="text-xs text-gray-500 mt-1 truncate">{sutra.description}</p>
-                <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                  <span>{sutra.chapters}品</span>
-                  <span>{sutra.duration}</span>
-                  <span>{sutra.completions}人诵读</span>
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-            </div>
-          </button>
-        ))}
-      </div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
-      {/* Stats */}
+      {/* 统计 */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-800 mb-3">本月诵经统计</h3>
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div className="p-3 bg-[#faf8f5] rounded-xl">
-            <p className="text-2xl font-bold text-[#8b2323]">12</p>
-            <p className="text-xs text-gray-500">诵经次数</p>
+        <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <Flame className="w-5 h-5 text-[#8b2323]" />
+          诵经统计
+        </h3>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="text-center p-3 bg-amber-50 rounded-xl">
+            <p className="text-2xl font-bold text-amber-600">{completedToday}</p>
+            <p className="text-xs text-gray-500">今日部数</p>
           </div>
-          <div className="p-3 bg-[#faf8f5] rounded-xl">
-            <p className="text-2xl font-bold text-[#c9a227]">3.5h</p>
-            <p className="text-xs text-gray-500">累计时长</p>
+          <div className="text-center p-3 bg-orange-50 rounded-xl">
+            <p className="text-2xl font-bold text-orange-600">{completedWeek}</p>
+            <p className="text-xs text-gray-500">本周部数</p>
           </div>
-          <div className="p-3 bg-[#faf8f5] rounded-xl">
-            <p className="text-2xl font-bold text-[#5c4033]">5部</p>
-            <p className="text-xs text-gray-500">不同经典</p>
+          <div className="text-center p-3 bg-[#faf8f5] rounded-xl">
+            <p className="text-2xl font-bold text-[#5c4033]">{completedTotal}</p>
+            <p className="text-xs text-gray-500">累计总数</p>
           </div>
         </div>
       </div>
