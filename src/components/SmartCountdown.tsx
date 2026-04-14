@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Play, Pause, RotateCcw, CheckCircle, Volume2 } from 'lucide-react'
+import { Play, Pause, RotateCcw, CheckCircle, Volume2, Home } from 'lucide-react'
+import { useApp } from '../contexts/AppContext'
 
 export interface PracticeTemplate {
   id: string
@@ -35,6 +36,8 @@ interface SmartCountdownProps {
   onComplete?: (template: PracticeTemplate) => void
   title?: string
   subtitle?: string
+  /** 修行类型，用于同步首页进度 */
+  practiceType?: 'sutra' | 'chant' | 'practice' | 'baichan'
 }
 
 export default function SmartCountdown({
@@ -42,7 +45,9 @@ export default function SmartCountdown({
   onComplete,
   title,
   subtitle,
+  practiceType,
 }: SmartCountdownProps) {
+  const { markStepComplete, goHome, showToast } = useApp()
   const [selectedTemplate, setSelectedTemplate] = useState<PracticeTemplate>(templates[0])
   const [phase, setPhase] = useState<'select' | 'countdown' | 'done'>('select')
   const [timeLeft, setTimeLeft] = useState(selectedTemplate.durationSeconds)
@@ -60,8 +65,14 @@ export default function SmartCountdown({
           setIsRunning(false)
           setPhase('done')
           onComplete?.(selectedTemplate)
+          // 同步首页进度
+          if (practiceType) {
+            markStepComplete(practiceType)
+          }
           // 震动提示
           if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+          // 显示成功提示
+          showToast(`${selectedTemplate.name} 已完成！`, 'success')
           return 0
         }
         return prev - 1
@@ -125,12 +136,21 @@ export default function SmartCountdown({
           <p className="text-sm text-gray-500 mt-1">功德无量，愿回向一切众生</p>
         </div>
 
-        <button
-          onClick={reset}
-          className="px-8 py-3 bg-[#8b2323] text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-transform"
-        >
-          再修一课
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={goHome}
+            className="px-6 py-3 bg-emerald-500 text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-transform flex items-center gap-2"
+          >
+            <Home className="w-5 h-5" />
+            返回首页
+          </button>
+          <button
+            onClick={reset}
+            className="px-6 py-3 bg-[#8b2323] text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-transform"
+          >
+            再修一课
+          </button>
+        </div>
       </div>
     )
   }

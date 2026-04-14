@@ -115,6 +115,7 @@ export default function PracticePage() {
           <SmartCountdown
             templates={templates}
             onComplete={handleComplete}
+            practiceType="practice"
           />
         ) : (
           <div className="text-center py-8 text-gray-500">

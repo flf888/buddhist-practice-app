@@ -137,6 +137,7 @@ export default function BaichanPage() {
           <SmartCountdown
             templates={templates}
             onComplete={handleComplete}
+            practiceType="baichan"
           />
         ) : (
           <div className="text-center py-8 text-gray-500">

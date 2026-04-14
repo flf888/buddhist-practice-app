@@ -114,6 +114,7 @@ export default function ChantPage() {
           <SmartCountdown
             templates={templates}
             onComplete={handleComplete}
+            practiceType="chant"
           />
         ) : (
           <div className="text-center py-8 text-gray-500">

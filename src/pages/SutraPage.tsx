@@ -266,6 +266,7 @@ export default function SutraPage() {
             <SmartCountdown
               templates={smartTemplates}
               onComplete={handleComplete}
+              practiceType="sutra"
             />
           ) : (
             <div className="text-center py-8 text-gray-500">

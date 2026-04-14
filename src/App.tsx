@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Home, BookOpen, User, Repeat, Sparkles, Heart } from 'lucide-react'
 import HomePage from './pages/HomePage'
 import PracticePage from './pages/PracticePage'
@@ -7,26 +6,26 @@ import FestivalPage from './pages/FestivalPage'
 import ProfilePage from './pages/ProfilePage'
 import ChantPage from './pages/ChantPage'
 import BaichanPage from './pages/BaichanPage'
+import ToastContainer from './components/ToastContainer'
+import { AppProvider, useApp } from './contexts/AppContext'
 import './index.css'
 
-type TabType = 'home' | 'practice' | 'sutra' | 'festival' | 'profile' | 'chant' | 'baichan'
-
-function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('home')
+function AppContent() {
+  const { activeTab, navigate } = useApp()
 
   const tabs = [
-    { id: 'home' as TabType, label: '首页', icon: Home },
-    { id: 'practice' as TabType, label: '念佛', icon: Repeat },
-    { id: 'chant' as TabType, label: '持咒', icon: Sparkles },
-    { id: 'baichan' as TabType, label: '拜忏', icon: Heart },
-    { id: 'sutra' as TabType, label: '诵经', icon: BookOpen },
-    { id: 'profile' as TabType, label: '我的', icon: User },
+    { id: 'home', label: '首页', icon: Home },
+    { id: 'practice', label: '念佛', icon: Repeat },
+    { id: 'chant', label: '持咒', icon: Sparkles },
+    { id: 'baichan', label: '拜忏', icon: Heart },
+    { id: 'sutra', label: '诵经', icon: BookOpen },
+    { id: 'profile', label: '我的', icon: User },
   ]
 
   const renderPage = () => {
     switch (activeTab) {
       case 'home':
-        return <HomePage onNavigate={setActiveTab} />
+        return <HomePage />
       case 'practice':
         return <PracticePage />
       case 'sutra':
@@ -40,12 +39,15 @@ function App() {
       case 'baichan':
         return <BaichanPage />
       default:
-        return <HomePage onNavigate={setActiveTab} />
+        return <HomePage />
     }
   }
 
   return (
     <div className="min-h-screen bg-[#faf8f5] max-w-md mx-auto relative pb-20">
+      {/* Toast Container */}
+      <ToastContainer />
+
       {/* Header */}
       <header className="bg-gradient-to-r from-[#8b2323] to-[#a83232] text-white px-4 py-4 shadow-lg">
         <div className="flex items-center justify-between">
@@ -74,7 +76,7 @@ function App() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => navigate(tab.id as any)}
                 className={`flex flex-col items-center py-1.5 px-2 rounded-xl transition-all ${
                   isActive
                     ? 'text-[#8b2323] bg-[#8b2323]/10'
@@ -89,6 +91,14 @@ function App() {
         </div>
       </nav>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
   )
 }
 

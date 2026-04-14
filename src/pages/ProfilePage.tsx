@@ -307,9 +307,13 @@ export default function ProfilePage() {
                     {countdown > 0 ? `${countdown}s` : codeSent ? '重新获取' : '获取验证码'}
                   </button>
                 </div>
-                {codeSent && (
-                  <p className="text-xs text-green-600 mt-1">验证码已发送，演示环境固定验证码: 123456</p>
-                )}
+                {/* 测试环境提示 */}
+                <div className="mt-2 bg-amber-50 rounded-lg p-2 border border-amber-200">
+                  <p className="text-xs text-amber-700">
+                    <span className="font-semibold">测试模式：</span>
+                    验证码固定为 <span className="font-bold text-amber-900">123456</span>，无需真实获取
+                  </p>
+                </div>
               </div>
 
               {/* 确认绑定 */}

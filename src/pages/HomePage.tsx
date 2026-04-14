@@ -1,9 +1,5 @@
-import { useState } from 'react'
 import { ChevronRight, CheckCircle, Circle, Bell, Sun, Moon } from 'lucide-react'
-
-interface HomePageProps {
-  onNavigate: (tab: 'home' | 'practice' | 'sutra' | 'festival' | 'profile' | 'chant' | 'baichan') => void
-}
+import { useApp } from '../contexts/AppContext'
 
 const hour = new Date().getHours()
 const isMorning = hour >= 5 && hour < 12
@@ -115,19 +111,19 @@ const festivals = [
   { name: '地藏王菩萨日', days: 18, icon: '🙏' },
 ]
 
-export default function HomePage({ onNavigate }: HomePageProps) {
-  const [courseType, setCourseType] = useState<'morning' | 'evening'>(isMorning ? 'morning' : 'evening')
-  const [completedSteps, setCompletedSteps] = useState<string[]>([])
-  const [showReminder, setShowReminder] = useState(true)
+export default function HomePage() {
+  const { courseType, setCourseType, completedSteps, markStepComplete, markStepIncomplete, navigate, showReminder, setShowReminder, resetCourseProgress } = useApp()
 
   const steps = courseType === 'morning' ? morningSteps : eveningSteps
   const completedCount = completedSteps.length
   const totalSteps = steps.length
 
   const toggleStep = (id: string) => {
-    setCompletedSteps((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    )
+    if (completedSteps.includes(id)) {
+      markStepIncomplete(id)
+    } else {
+      markStepComplete(id)
+    }
   }
 
   const isAllDone = completedCount === totalSteps
@@ -173,7 +169,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           <h2 className="text-lg font-semibold text-gray-800">今日功课</h2>
           <div className="flex bg-[#faf8f5] rounded-xl p-1 gap-1">
             <button
-              onClick={() => { setCourseType('morning'); setCompletedSteps([]) }}
+              onClick={() => { setCourseType('morning'); resetCourseProgress() }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 courseType === 'morning'
                   ? 'bg-[#c9a227] text-white shadow-sm'
@@ -183,7 +179,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               <Sun className="w-4 h-4" />早课
             </button>
             <button
-              onClick={() => { setCourseType('evening'); setCompletedSteps([]) }}
+              onClick={() => { setCourseType('evening'); resetCourseProgress() }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 courseType === 'evening'
                   ? 'bg-[#8b2323] text-white shadow-sm'
@@ -244,7 +240,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {step.nav && !done && (
                     <button
-                      onClick={() => onNavigate(step.nav!)}
+                      onClick={() => navigate(step.nav!)}
                       className="text-xs text-[#8b2323] bg-[#8b2323]/10 px-2 py-1 rounded-lg flex items-center gap-0.5"
                     >
                       进入<ChevronRight className="w-3 h-3" />
@@ -267,7 +263,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800">即将到来的节日</h2>
-          <button onClick={() => onNavigate('festival')} className="text-sm text-[#8b2323] flex items-center gap-1">
+          <button onClick={() => navigate('festival')} className="text-sm text-[#8b2323] flex items-center gap-1">
             查看全部 <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -282,7 +278,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 </div>
               </div>
               <button
-                onClick={() => onNavigate('festival')}
+                onClick={() => navigate('festival')}
                 className="px-3 py-1.5 text-xs bg-[#8b2323] text-white rounded-lg"
               >
                 预约
