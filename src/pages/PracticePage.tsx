@@ -1,53 +1,94 @@
-import { useState } from 'react'
-import { Repeat, Flame } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Repeat, Flame, Loader2 } from 'lucide-react'
 import SmartCountdown from '../components/SmartCountdown'
 import type { PracticeTemplate } from '../components/SmartCountdown'
-
-const nianfoTemplates: PracticeTemplate[] = [
-  {
-    id: 'nianfo-10',
-    name: '念佛 10 遍',
-    subtitle: '南无阿弥陀佛 · 早起清净念',
-    quantity: 10,
-    unit: '遍',
-    durationSeconds: 60,
-    audioGuide: '开始念佛，净念相继，南无阿弥陀佛',
-    color: '#d97706',
-    bgColor: 'from-amber-500 to-orange-500',
-  },
-  {
-    id: 'nianfo-108',
-    name: '念佛 108 遍',
-    subtitle: '南无阿弥陀佛 · 108圆满',
-    quantity: 108,
-    unit: '遍',
-    durationSeconds: 600,
-    audioGuide: '开始念佛，108遍完整修持，愿生西方净土中',
-    color: '#dc2626',
-    bgColor: 'from-red-500 to-rose-600',
-  },
-  {
-    id: 'nianfo-1000',
-    name: '念佛 1000 遍',
-    subtitle: '南无阿弥陀佛 · 精进持念',
-    quantity: 1000,
-    unit: '遍',
-    durationSeconds: 3600,
-    audioGuide: '开始念佛，精进持念，一心不乱',
-    color: '#9333ea',
-    bgColor: 'from-purple-600 to-pink-600',
-  },
-]
+import { templateApi, recordsApi, storage } from '../services/api'
 
 export default function PracticePage() {
-  const [completedToday, setCompletedToday] = useState(32)
-  const [completedWeek, setCompletedWeek] = useState(256)
-  const [completedTotal, setCompletedTotal] = useState(12800)
+  const [templates, setTemplates] = useState<PracticeTemplate[]>([])
+  const [completedToday, setCompletedToday] = useState(0)
+  const [completedWeek, setCompletedWeek] = useState(0)
+  const [completedTotal, setCompletedTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  const handleComplete = (template: PracticeTemplate) => {
-    setCompletedToday((prev) => prev + template.quantity)
-    setCompletedWeek((prev) => prev + template.quantity)
-    setCompletedTotal((prev) => prev + template.quantity)
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [templateData, statsData, weeklyData] = await Promise.all([
+        templateApi.getTemplatesByType('nianfo'),
+        recordsApi.getStats(),
+        recordsApi.getWeekly()
+      ])
+
+      // 转换模板数据
+      const colors = ['#d97706', '#dc2626', '#9333ea', '#059669', '#2563eb']
+      const bgColors = ['from-amber-500 to-orange-500', 'from-red-500 to-rose-600', 'from-purple-600 to-pink-600', 'from-emerald-500 to-teal-600', 'from-blue-500 to-indigo-600']
+
+      const convertedTemplates: PracticeTemplate[] = templateData.map((t, idx) => ({
+        id: `template-${t.id}`,
+        name: t.name,
+        subtitle: t.voiceGuide || '南无阿弥陀佛',
+        quantity: t.quantity,
+        unit: t.unit,
+        durationSeconds: t.durationSeconds,
+        audioGuide: t.voiceGuide || '开始念佛，净念相继',
+        color: colors[idx % colors.length],
+        bgColor: bgColors[idx % bgColors.length],
+        templateId: t.id,
+      }))
+
+      setTemplates(convertedTemplates)
+      setCompletedTotal(statsData.totalNianfo)
+      setCompletedWeek(weeklyData.weekTotal)
+
+      // 计算今日念佛数
+      const today = new Date().toISOString().split('T')[0]
+      const todayData = weeklyData.dailyData.find(d => d.date === today)
+      setCompletedToday(todayData?.totalExp || 0)
+    } catch (err) {
+      console.error('加载数据失败:', err)
+      // 如果未登录或token失效，使用空模板
+      setTemplates([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleComplete = async (template: PracticeTemplate) => {
+    const token = storage.getToken()
+    if (!token || !template.templateId) return
+
+    try {
+      await recordsApi.createRecord({
+        templateId: template.templateId,
+        practiceType: 'nianfo',
+        practiceName: template.name,
+        quantity: template.quantity,
+        unit: template.unit,
+        durationSeconds: template.durationSeconds,
+        practiceMode: 'smart',
+        sessionType: 'general',
+      })
+
+      // 更新本地统计
+      setCompletedToday((prev) => prev + template.quantity)
+      setCompletedWeek((prev) => prev + template.quantity)
+      setCompletedTotal((prev) => prev + template.quantity)
+    } catch (err) {
+      console.error('保存记录失败:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-[#8b2323]" />
+      </div>
+    )
   }
 
   return (
@@ -70,10 +111,16 @@ export default function PracticePage() {
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
           选择功课模板 → 点击开始 → 自动倒计时 → 时间到即完成对应遍数
         </p>
-        <SmartCountdown
-          templates={nianfoTemplates}
-          onComplete={handleComplete}
-        />
+        {templates.length > 0 ? (
+          <SmartCountdown
+            templates={templates}
+            onComplete={handleComplete}
+          />
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>请先登录后使用修行功能</p>
+          </div>
+        )}
       </div>
 
       {/* 今日统计 */}
@@ -85,15 +132,15 @@ export default function PracticePage() {
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center p-3 bg-amber-50 rounded-xl">
             <p className="text-2xl font-bold text-amber-600">{completedToday}</p>
-            <p className="text-xs text-gray-500">今日遍数</p>
+            <p className="text-xs text-gray-500">今日经验</p>
           </div>
           <div className="text-center p-3 bg-orange-50 rounded-xl">
             <p className="text-2xl font-bold text-orange-600">{completedWeek}</p>
-            <p className="text-xs text-gray-500">本周遍数</p>
+            <p className="text-xs text-gray-500">本周经验</p>
           </div>
           <div className="text-center p-3 bg-[#faf8f5] rounded-xl">
             <p className="text-2xl font-bold text-[#5c4033]">{(completedTotal / 10000).toFixed(1)}万</p>
-            <p className="text-xs text-gray-500">累计总数</p>
+            <p className="text-xs text-gray-500">念佛总数</p>
           </div>
         </div>
       </div>

@@ -1,10 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   User, Bell, Moon, Sun, ChevronRight, Award,
   Flame, Calendar, TrendingUp, Target, Star, Crown,
   Heart, HelpCircle, Minus, Plus, LogOut, Shield,
-  MessageCircle
+  MessageCircle, Loader2
 } from 'lucide-react'
+import {
+  authApi,
+  settingsApi,
+  userApi,
+  recordsApi,
+  achievementsApi,
+  storage,
+  type UserProfile,
+  type PracticeStats,
+  type Achievement
+} from '../services/api'
 
 // 遍数配置项
 const countSettings = [
@@ -19,45 +30,24 @@ const countSettings = [
   { key: 'baichan_default', label: '拜忏默认次数', default: 21, min: 3, max: 108, unit: '拜' },
 ]
 
-const levelInfo = {
-  level: 3,
-  title: '精进居士',
-  nextLevel: 4,
-  nextTitle: '念佛行者',
-  currentExp: 15680,
-  expForNext: 20000,
-  progress: 78,
+const defaultLevelInfo = {
+  level: 1,
+  title: '初学居士',
+  nextLevel: 2,
+  nextTitle: '精进居士',
+  currentExp: 0,
+  expForNext: 100,
+  progress: 0,
 }
 
-const stats = {
-  totalDays: 89,
-  streak: 15,
-  totalNianfo: 45600,
-  totalNianjing: 23,
-  totalNianzhou: 2100,
-  totalBaichan: 5,
+const defaultStats = {
+  totalDays: 0,
+  streak: 0,
+  totalNianfo: 0,
+  totalNianjing: 0,
+  totalNianzhou: 0,
+  totalBaichan: 0,
 }
-
-const achievements = [
-  { id: 1, name: '初发心', desc: '完成首次念佛', icon: '🌱', unlocked: true },
-  { id: 2, name: '七日精进', desc: '连续修行7天', icon: '🔥', unlocked: true },
-  { id: 3, name: '万遍功德', desc: '累计念佛一万遍', icon: '🙏', unlocked: true },
-  { id: 4, name: '经文通读', desc: '读完整部经典', icon: '📖', unlocked: true },
-  { id: 5, name: '三十日恒', desc: '连续修行30天', icon: '⛰️', unlocked: false },
-  { id: 6, name: '十万功德', desc: '累计念佛十万遍', icon: '✨', unlocked: false },
-  { id: 7, name: '菩萨同行', desc: '参与菩萨圣诞共修', icon: '🪷', unlocked: false },
-  { id: 8, name: '圆满打七', desc: '完成一次打七共修', icon: '🏃', unlocked: false },
-]
-
-const weeklyData = [
-  { day: '周一', value: 1200 },
-  { day: '周二', value: 1500 },
-  { day: '周三', value: 800 },
-  { day: '周四', value: 1800 },
-  { day: '周五', value: 2000 },
-  { day: '周六', value: 2200 },
-  { day: '周日', value: 1600 },
-]
 
 export default function ProfilePage() {
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -70,31 +60,160 @@ export default function ProfilePage() {
   const [sendingCode, setSendingCode] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [codeSent, setCodeSent] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const maxValue = Math.max(...weeklyData.map((d) => d.value))
+  // 用户数据
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [stats, setStats] = useState<PracticeStats | null>(null)
+  const [achievements, setAchievements] = useState<Achievement[]>([])
+  const [weeklyData, setWeeklyData] = useState<{ day: string; value: number }[]>([])
 
-  const sendVerifyCode = () => {
-    if (phone.length !== 11) return
-    setSendingCode(true)
-    setTimeout(() => {
-      setSendingCode(false)
-      setCodeSent(true)
-      setCountdown(60)
-    }, 1000)
-  }
-
-  const confirmLogin = () => {
-    if (verifyCode.length === 6) {
+  // 检查登录状态
+  useEffect(() => {
+    const token = storage.getToken()
+    if (token) {
       setIsLoggedIn(true)
-      setLoginStep('choice')
+      loadUserData()
+    }
+  }, [])
+
+  // 加载用户数据
+  const loadUserData = async () => {
+    try {
+      setLoading(true)
+      const [profileData, statsData, achievementsData, weekly, settingsData] = await Promise.all([
+        userApi.getProfile(),
+        recordsApi.getStats(),
+        achievementsApi.getAchievements(),
+        recordsApi.getWeekly(),
+        settingsApi.getSettings()
+      ])
+
+      setProfile(profileData)
+      setStats(statsData)
+      setAchievements(achievementsData)
+      setWeeklyData(weekly.dailyData.map(d => ({ day: d.day, value: d.totalExp })))
+      // 转换UserSettings为普通对象
+      const settingsObj: Record<string, number> = { ...settingsData }
+      setUserSettings(settingsObj)
+    } catch (err) {
+      console.error('加载用户数据失败:', err)
+      // 如果是token失效，跳转到未登录状态
+      if (String(err).includes('Token')) {
+        setIsLoggedIn(false)
+        storage.removeToken()
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
-  const adjustSetting = (key: string, delta: number, min: number, max: number) => {
-    setUserSettings((prev) => ({
-      ...prev,
-      [key]: Math.min(max, Math.max(min, (prev[key] || countSettings.find((s) => s.key === key)?.default || 0) + delta)),
-    }))
+  // 计算等级信息
+  const getLevelInfo = useCallback(() => {
+    if (!profile) return defaultLevelInfo
+    const currentExp = profile.totalExp
+    const level = profile.level
+    const expForNext = profile.expForNextLevel
+    const prevExp = level > 1 ? (level - 1) * 100 : 0
+    const progress = Math.round(((currentExp - prevExp) / (expForNext - prevExp)) * 100)
+
+    return {
+      level,
+      title: profile.title,
+      nextLevel: Math.min(level + 1, 20),
+      nextTitle: getTitleByLevel(level + 1),
+      currentExp,
+      expForNext,
+      progress: Math.min(progress, 100),
+    }
+  }, [profile])
+
+  const getTitleByLevel = (level: number) => {
+    if (level <= 2) return '初学居士'
+    if (level <= 4) return '精进居士'
+    if (level <= 6) return '念佛行者'
+    if (level <= 8) return '清净行者'
+    if (level <= 10) return '智慧行者'
+    if (level <= 15) return '菩萨行者'
+    return '圆满行者'
+  }
+
+  const maxValue = weeklyData.length > 0 ? Math.max(...weeklyData.map((d) => d.value)) : 1
+
+  // 发送验证码
+  const sendVerifyCode = async () => {
+    if (phone.length !== 11) return
+    setSendingCode(true)
+    setError('')
+    try {
+      await authApi.sendCode(phone)
+      setCodeSent(true)
+      setCountdown(60)
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setSendingCode(false)
+    }
+  }
+
+  // 确认登录
+  const confirmLogin = async () => {
+    if (verifyCode.length !== 6) return
+    setLoading(true)
+    setError('')
+    try {
+      const result = await authApi.login(phone, verifyCode)
+      storage.setToken(result.token)
+      setIsLoggedIn(true)
+      setLoginStep('choice')
+      await loadUserData()
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 退出登录
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } catch (err) {
+      console.error('退出失败:', err)
+    }
+    storage.removeToken()
+    setIsLoggedIn(false)
+    setProfile(null)
+    setStats(null)
+    setAchievements([])
+    setWeeklyData([])
+  }
+
+  // 调整设置
+  const adjustSetting = async (key: string, delta: number, min: number, max: number) => {
+    const currentValue = userSettings[key] || countSettings.find(s => s.key === key)?.default || 0
+    const newValue = Math.min(max, Math.max(min, currentValue + delta))
+
+    const newSettings = { ...userSettings, [key]: newValue }
+    setUserSettings(newSettings)
+
+    try {
+      await settingsApi.updateSettings({ [key]: newValue })
+    } catch (err) {
+      console.error('保存设置失败:', err)
+      // 回滚
+      setUserSettings(userSettings)
+    }
   }
 
   const getSettingValue = (key: string) => {
@@ -115,6 +234,12 @@ export default function ProfilePage() {
           <p className="text-sm opacity-80">登录后同步修行数据，配置个人功课</p>
         </div>
 
+        {error && (
+          <div className="bg-red-50 rounded-xl p-3 border border-red-200 text-red-600 text-sm">
+            {error}
+          </div>
+        )}
+
         {loginStep === 'choice' && (
           <div className="space-y-3">
             <p className="text-sm text-gray-500 text-center">请选择登录方式</p>
@@ -122,7 +247,6 @@ export default function ProfilePage() {
             {/* 微信登录 */}
             <button
               onClick={() => {
-                // 模拟微信授权
                 const confirmed = window.confirm('即将调起微信授权（演示模式：点击确认继续）')
                 if (confirmed) {
                   setLoginStep('phone')
@@ -183,18 +307,22 @@ export default function ProfilePage() {
                     {countdown > 0 ? `${countdown}s` : codeSent ? '重新获取' : '获取验证码'}
                   </button>
                 </div>
+                {codeSent && (
+                  <p className="text-xs text-green-600 mt-1">验证码已发送，演示环境固定验证码: 123456</p>
+                )}
               </div>
 
               {/* 确认绑定 */}
               <button
                 onClick={confirmLogin}
-                disabled={phone.length !== 11 || verifyCode.length !== 6}
-                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all ${
+                disabled={phone.length !== 11 || verifyCode.length !== 6 || loading}
+                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${
                   phone.length === 11 && verifyCode.length === 6
                     ? 'bg-[#8b2323] text-white shadow-lg'
                     : 'bg-gray-100 text-gray-400'
                 }`}
               >
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
                 确认绑定
               </button>
             </div>
@@ -209,6 +337,31 @@ export default function ProfilePage() {
         )}
       </div>
     )
+  }
+
+  // 加载中
+  if (loading && !profile) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-[#8b2323]" />
+      </div>
+    )
+  }
+
+  const levelInfo = getLevelInfo()
+  const displayStats: PracticeStats = stats ? {
+    ...stats,
+    streakDays: stats.streakDays || 0,
+    totalExp: stats.totalExp || 0
+  } : {
+    totalNianfo: defaultStats.totalNianfo,
+    totalNianjing: defaultStats.totalNianjing,
+    totalNianzhou: defaultStats.totalNianzhou,
+    totalBaichan: defaultStats.totalBaichan,
+    totalExp: 0,
+    totalDays: defaultStats.totalDays,
+    streakDays: defaultStats.streak,
+    lastPracticeDate: undefined
   }
 
   // 登录后 - 设置页
@@ -361,7 +514,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold">善知识</h1>
+              <h1 className="text-xl font-bold">{profile?.nickname || '善知识'}</h1>
               <div className="flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full">
                 <Shield className="w-3 h-3 text-emerald-300" />
                 <span className="text-xs text-emerald-200">已认证</span>
@@ -374,7 +527,7 @@ export default function ProfilePage() {
             </div>
           </div>
           <button
-            onClick={() => setIsLoggedIn(false)}
+            onClick={handleLogout}
             className="p-2 rounded-lg bg-white/10"
             title="退出登录"
           >
@@ -407,7 +560,7 @@ export default function ProfilePage() {
             <Flame className="w-5 h-5" />
             <span className="font-semibold">连续修行</span>
           </div>
-          <p className="text-3xl font-bold text-gray-800">{stats.streak}</p>
+          <p className="text-3xl font-bold text-gray-800">{displayStats.streakDays}</p>
           <p className="text-xs text-gray-500">天</p>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
@@ -415,7 +568,7 @@ export default function ProfilePage() {
             <Calendar className="w-5 h-5" />
             <span className="font-semibold">累计天数</span>
           </div>
-          <p className="text-3xl font-bold text-gray-800">{stats.totalDays}</p>
+          <p className="text-3xl font-bold text-gray-800">{displayStats.totalDays}</p>
           <p className="text-xs text-gray-500">天</p>
         </div>
       </div>
@@ -450,7 +603,7 @@ export default function ProfilePage() {
             <div key={idx} className="flex-1 flex flex-col items-center gap-1">
               <div
                 className="w-full bg-gradient-to-t from-[#8b2323] to-[#c9a227] rounded-t-lg transition-all"
-                style={{ height: `${(day.value / maxValue) * 80}px` }}
+                style={{ height: `${maxValue > 0 ? (day.value / maxValue) * 80 : 0}px`, minHeight: day.value > 0 ? '4px' : '0' }}
               />
               <span className="text-xs text-gray-500">{day.day}</span>
             </div>
@@ -471,7 +624,7 @@ export default function ProfilePage() {
               <span className="text-lg">🙏</span>
             </div>
             <div>
-              <p className="text-xl font-bold text-gray-800">{(stats.totalNianfo / 10000).toFixed(1)}万</p>
+              <p className="text-xl font-bold text-gray-800">{(displayStats.totalNianfo / 10000).toFixed(1)}万</p>
               <p className="text-xs text-gray-500">念佛总数</p>
             </div>
           </div>
@@ -480,7 +633,7 @@ export default function ProfilePage() {
               <span className="text-lg">📖</span>
             </div>
             <div>
-              <p className="text-xl font-bold text-gray-800">{stats.totalNianjing}</p>
+              <p className="text-xl font-bold text-gray-800">{displayStats.totalNianjing}</p>
               <p className="text-xs text-gray-500">诵经总数</p>
             </div>
           </div>
@@ -489,7 +642,7 @@ export default function ProfilePage() {
               <span className="text-lg">✨</span>
             </div>
             <div>
-              <p className="text-xl font-bold text-gray-800">{stats.totalNianzhou}</p>
+              <p className="text-xl font-bold text-gray-800">{displayStats.totalNianzhou}</p>
               <p className="text-xs text-gray-500">持咒总数</p>
             </div>
           </div>
@@ -498,7 +651,7 @@ export default function ProfilePage() {
               <span className="text-lg">❤️</span>
             </div>
             <div>
-              <p className="text-xl font-bold text-gray-800">{stats.totalBaichan}</p>
+              <p className="text-xl font-bold text-gray-800">{displayStats.totalBaichan}</p>
               <p className="text-xs text-gray-500">拜忏总数</p>
             </div>
           </div>
@@ -512,12 +665,13 @@ export default function ProfilePage() {
           <span className="text-xs text-gray-500">{achievements.filter((a) => a.unlocked).length}/{achievements.length}</span>
         </div>
         <div className="grid grid-cols-4 gap-3">
-          {achievements.map((ach) => (
+          {achievements.slice(0, 8).map((ach) => (
             <div
               key={ach.id}
               className={`flex flex-col items-center p-2 rounded-xl ${
                 ach.unlocked ? 'bg-[#faf8f5]' : 'bg-gray-100 opacity-50'
               }`}
+              title={ach.description}
             >
               <span className={`text-2xl ${ach.unlocked ? '' : 'grayscale'}`}>{ach.icon}</span>
               <span className={`text-[10px] mt-1 ${ach.unlocked ? 'text-gray-700' : 'text-gray-400'}`}>

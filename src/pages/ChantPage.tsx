@@ -1,75 +1,93 @@
-import { useState } from 'react'
-import { Sparkles, Flame } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Sparkles, Flame, Loader2 } from 'lucide-react'
 import SmartCountdown from '../components/SmartCountdown'
 import type { PracticeTemplate } from '../components/SmartCountdown'
-
-const chantTemplates: PracticeTemplate[] = [
-  {
-    id: 'dabei-3',
-    name: '大悲咒 3 遍',
-    subtitle: '千手千眼观世音菩萨广大圆满无碍大悲心陀罗尼',
-    quantity: 3,
-    unit: '遍',
-    durationSeconds: 180,
-    audioGuide: '开始持诵大悲咒，慈悲普被，消灾解厄',
-    color: '#7c3aed',
-    bgColor: 'from-purple-600 to-violet-600',
-  },
-  {
-    id: 'dabei-7',
-    name: '大悲咒 7 遍',
-    subtitle: '大悲咒完整七遍修持',
-    quantity: 7,
-    unit: '遍',
-    durationSeconds: 420,
-    audioGuide: '开始持诵大悲咒七遍，虔诚持念',
-    color: '#8b5cf6',
-    bgColor: 'from-purple-500 to-pink-500',
-  },
-  {
-    id: 'dabei-21',
-    name: '大悲咒 21 遍',
-    subtitle: '大悲咒二十一遍圆满修持',
-    quantity: 21,
-    unit: '遍',
-    durationSeconds: 1260,
-    audioGuide: '开始持诵大悲咒二十一遍，圆满自在',
-    color: '#db2777',
-    bgColor: 'from-pink-600 to-rose-600',
-  },
-  {
-    id: 'wangsheng-7',
-    name: '往生咒 7 遍',
-    subtitle: '拔一切业障根本，得生净土陀罗尼',
-    quantity: 7,
-    unit: '遍',
-    durationSeconds: 280,
-    audioGuide: '开始持诵往生咒，往生净土，莲登九品',
-    color: '#059669',
-    bgColor: 'from-emerald-600 to-teal-600',
-  },
-  {
-    id: 'liuzi-108',
-    name: '六字大明咒 108 遍',
-    subtitle: '唵嘛呢呗咪吽 · 观世音菩萨心咒',
-    quantity: 108,
-    unit: '遍',
-    durationSeconds: 1080,
-    audioGuide: '开始持诵六字大明咒，唵嘛呢呗咪吽',
-    color: '#2563eb',
-    bgColor: 'from-blue-600 to-indigo-600',
-  },
-]
+import { templateApi, recordsApi, storage } from '../services/api'
 
 export default function ChantPage() {
-  const [completedToday, setCompletedToday] = useState(14)
-  const [completedWeek, setCompletedWeek] = useState(98)
-  const [completedTotal, setCompletedTotal] = useState(2100)
+  const [templates, setTemplates] = useState<PracticeTemplate[]>([])
+  const [completedToday, setCompletedToday] = useState(0)
+  const [completedWeek, setCompletedWeek] = useState(0)
+  const [completedTotal, setCompletedTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  const handleComplete = (template: PracticeTemplate) => {
-    setCompletedToday((prev) => prev + template.quantity)
-    setCompletedWeek((prev) => prev + template.quantity)
-    setCompletedTotal((prev) => prev + template.quantity)
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [templateData, statsData, weeklyData] = await Promise.all([
+        templateApi.getTemplatesByType('nianzhou'),
+        recordsApi.getStats(),
+        recordsApi.getWeekly()
+      ])
+
+      // 转换模板数据
+      const colors = ['#7c3aed', '#8b5cf6', '#db2777', '#059669', '#2563eb']
+      const bgColors = ['from-purple-600 to-violet-600', 'from-purple-500 to-pink-500', 'from-pink-600 to-rose-600', 'from-emerald-600 to-teal-600', 'from-blue-600 to-indigo-600']
+
+      const convertedTemplates: PracticeTemplate[] = templateData.map((t, idx) => ({
+        id: `template-${t.id}`,
+        name: t.name,
+        subtitle: t.voiceGuide || '持咒修行',
+        quantity: t.quantity,
+        unit: t.unit,
+        durationSeconds: t.durationSeconds,
+        audioGuide: t.voiceGuide || '开始持咒',
+        color: colors[idx % colors.length],
+        bgColor: bgColors[idx % bgColors.length],
+        templateId: t.id,
+      }))
+
+      setTemplates(convertedTemplates)
+      setCompletedTotal(statsData.totalNianzhou)
+
+      // 计算今日持咒经验
+      const today = new Date().toISOString().split('T')[0]
+      const todayData = weeklyData.dailyData.find(d => d.date === today)
+      // 持咒1遍=2经验
+      setCompletedToday(todayData ? Math.floor(todayData.totalExp * 0.5) : 0)
+      setCompletedWeek(Math.floor(weeklyData.weekTotal * 0.5))
+    } catch (err) {
+      console.error('加载数据失败:', err)
+      setTemplates([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleComplete = async (template: PracticeTemplate) => {
+    const token = storage.getToken()
+    if (!token || !template.templateId) return
+
+    try {
+      await recordsApi.createRecord({
+        templateId: template.templateId,
+        practiceType: 'nianzhou',
+        practiceName: template.name,
+        quantity: template.quantity,
+        unit: template.unit,
+        durationSeconds: template.durationSeconds,
+        practiceMode: 'smart',
+        sessionType: 'general',
+      })
+
+      setCompletedToday((prev) => prev + template.quantity)
+      setCompletedWeek((prev) => prev + template.quantity)
+      setCompletedTotal((prev) => prev + template.quantity)
+    } catch (err) {
+      console.error('保存记录失败:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-[#8b2323]" />
+      </div>
+    )
   }
 
   return (
@@ -92,10 +110,16 @@ export default function ChantPage() {
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
           选择咒语模板 → 点击开始 → 自动倒计时 → 时间到即完成对应遍数
         </p>
-        <SmartCountdown
-          templates={chantTemplates}
-          onComplete={handleComplete}
-        />
+        {templates.length > 0 ? (
+          <SmartCountdown
+            templates={templates}
+            onComplete={handleComplete}
+          />
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>请先登录后使用修行功能</p>
+          </div>
+        )}
       </div>
 
       {/* 今日统计 */}

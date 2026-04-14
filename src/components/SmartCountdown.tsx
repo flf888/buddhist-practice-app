@@ -11,6 +11,7 @@ export interface PracticeTemplate {
   audioGuide: string
   color: string
   bgColor: string
+  templateId?: number
 }
 
 // 本地默认遍数配置（未登录时显示，登录后可调）

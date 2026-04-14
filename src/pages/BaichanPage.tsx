@@ -1,81 +1,116 @@
-import { useState } from 'react'
-import { Heart, Flame, Calendar, Check } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Heart, Flame, Calendar, Check, Loader2 } from 'lucide-react'
 import SmartCountdown from '../components/SmartCountdown'
 import type { PracticeTemplate } from '../components/SmartCountdown'
-
-const baichanTemplates: PracticeTemplate[] = [
-  {
-    id: 'baichan-3',
-    name: '礼佛三拜',
-    subtitle: '消灾祈福 · 基础忏悔',
-    quantity: 3,
-    unit: '拜',
-    durationSeconds: 120,
-    audioGuide: '开始礼佛三拜，至诚忏悔',
-    color: '#d97706',
-    bgColor: 'from-amber-500 to-orange-500',
-  },
-  {
-    id: 'baichan-7',
-    name: '礼佛七拜',
-    subtitle: '地藏经超度 · 七拜修持',
-    quantity: 7,
-    unit: '拜',
-    durationSeconds: 280,
-    audioGuide: '开始礼佛七拜，至诚忏悔',
-    color: '#ea580c',
-    bgColor: 'from-orange-500 to-red-500',
-  },
-  {
-    id: 'baichan-21',
-    name: '礼佛二十一遍',
-    subtitle: '消灾祈福 · 二十一遍圆满',
-    quantity: 21,
-    unit: '拜',
-    durationSeconds: 840,
-    audioGuide: '开始礼佛二十一遍，圆满自在',
-    color: '#dc2626',
-    bgColor: 'from-red-500 to-rose-600',
-  },
-  {
-    id: 'baichan-49',
-    name: '礼佛四十九拜',
-    subtitle: '药师佛祈福 · 四十九拜大修',
-    quantity: 49,
-    unit: '拜',
-    durationSeconds: 1960,
-    audioGuide: '开始礼佛四十九拜，虔诚精进',
-    color: '#16a34a',
-    bgColor: 'from-green-600 to-emerald-600',
-  },
-  {
-    id: 'baichan-108',
-    name: '礼佛一百零八拜',
-    subtitle: '108大拜 · 圆满忏悔',
-    quantity: 108,
-    unit: '拜',
-    durationSeconds: 4320,
-    audioGuide: '开始礼佛一百零八拜，功德圆满',
-    color: '#7c3aed',
-    bgColor: 'from-purple-600 to-pink-600',
-  },
-]
-
-const recentSessions = [
-  { name: '清明节超度', date: '04-05', status: 'completed', cycles: 7 },
-  { name: '观音诞辰祈福', date: '03-19', status: 'completed', cycles: 3 },
-  { name: '消灾法会', date: '03-15', status: 'completed', cycles: 21 },
-]
+import { templateApi, recordsApi, storage } from '../services/api'
 
 export default function BaichanPage() {
-  const [completedToday, setCompletedToday] = useState(3)
-  const [completedWeek, setCompletedWeek] = useState(17)
-  const [completedTotal, setCompletedTotal] = useState(5)
+  const [templates, setTemplates] = useState<PracticeTemplate[]>([])
+  const [completedToday, setCompletedToday] = useState(0)
+  const [completedWeek, setCompletedWeek] = useState(0)
+  const [completedTotal, setCompletedTotal] = useState(0)
+  const [recentSessions, setRecentSessions] = useState<{ name: string; date: string; cycles: number }[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const handleComplete = (template: PracticeTemplate) => {
-    setCompletedToday((prev) => prev + template.quantity)
-    setCompletedWeek((prev) => prev + template.quantity)
-    setCompletedTotal((prev) => prev + 1)
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [templateData, statsData, weeklyData, recordsData] = await Promise.all([
+        templateApi.getTemplatesByType('baichan'),
+        recordsApi.getStats(),
+        recordsApi.getWeekly(),
+        recordsApi.getRecords({ limit: 5, type: 'baichan' })
+      ])
+
+      // 转换模板数据
+      const colors = ['#d97706', '#ea580c', '#dc2626', '#16a34a', '#7c3aed']
+      const bgColors = ['from-amber-500 to-orange-500', 'from-orange-500 to-red-500', 'from-red-500 to-rose-600', 'from-green-600 to-emerald-600', 'from-purple-600 to-pink-600']
+
+      const convertedTemplates: PracticeTemplate[] = templateData.map((t, idx) => ({
+        id: `template-${t.id}`,
+        name: t.name,
+        subtitle: t.voiceGuide || '礼佛修行',
+        quantity: t.quantity,
+        unit: t.unit,
+        durationSeconds: t.durationSeconds,
+        audioGuide: t.voiceGuide || '开始礼佛',
+        color: colors[idx % colors.length],
+        bgColor: bgColors[idx % bgColors.length],
+        templateId: t.id,
+      }))
+
+      setTemplates(convertedTemplates)
+      setCompletedTotal(statsData.totalBaichan)
+
+      // 计算今日拜数（1拜=5经验）
+      const today = new Date().toISOString().split('T')[0]
+      const todayData = weeklyData.dailyData.find(d => d.date === today)
+      setCompletedToday(todayData ? Math.floor(todayData.totalExp / 5) : 0)
+      setCompletedWeek(Math.floor(weeklyData.weekTotal / 5))
+
+      // 转换最近记录
+      const sessions = recordsData.records.slice(0, 3).map(r => ({
+        name: r.practiceName,
+        date: r.practiceDate.slice(5).replace('-', '-'),
+        cycles: r.quantity
+      }))
+      setRecentSessions(sessions)
+    } catch (err) {
+      console.error('加载数据失败:', err)
+      setTemplates([])
+      setRecentSessions([
+        { name: '清明节超度', date: '04-05', cycles: 7 },
+        { name: '观音诞辰祈福', date: '03-19', cycles: 3 },
+        { name: '消灾法会', date: '03-15', cycles: 21 },
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleComplete = async (template: PracticeTemplate) => {
+    const token = storage.getToken()
+    if (!token || !template.templateId) return
+
+    try {
+      await recordsApi.createRecord({
+        templateId: template.templateId,
+        practiceType: 'baichan',
+        practiceName: template.name,
+        quantity: template.quantity,
+        unit: template.unit,
+        durationSeconds: template.durationSeconds,
+        practiceMode: 'smart',
+        sessionType: 'general',
+      })
+
+      setCompletedToday((prev) => prev + template.quantity)
+      setCompletedWeek((prev) => prev + template.quantity)
+      setCompletedTotal((prev) => prev + 1)
+
+      // 刷新最近记录
+      const recordsData = await recordsApi.getRecords({ limit: 5, type: 'baichan' })
+      const sessions = recordsData.records.slice(0, 3).map(r => ({
+        name: r.practiceName,
+        date: r.practiceDate.slice(5).replace('-', '-'),
+        cycles: r.quantity
+      }))
+      setRecentSessions(sessions)
+    } catch (err) {
+      console.error('保存记录失败:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-[#8b2323]" />
+      </div>
+    )
   }
 
   return (
@@ -98,10 +133,16 @@ export default function BaichanPage() {
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
           选择拜忏模板 → 点击开始 → 自动倒计时 → 时间到即完成对应拜数
         </p>
-        <SmartCountdown
-          templates={baichanTemplates}
-          onComplete={handleComplete}
-        />
+        {templates.length > 0 ? (
+          <SmartCountdown
+            templates={templates}
+            onComplete={handleComplete}
+          />
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>请先登录后使用修行功能</p>
+          </div>
+        )}
       </div>
 
       {/* 今日统计 */}

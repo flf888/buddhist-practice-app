@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { BookOpen, ChevronRight, Flame, Play, Pause } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { BookOpen, ChevronRight, Flame, Play, Pause, Loader2 } from 'lucide-react'
 import SmartCountdown from '../components/SmartCountdown'
 import type { PracticeTemplate } from '../components/SmartCountdown'
+import { templateApi, recordsApi, storage } from '../services/api'
 
 const sutras = [
   {
@@ -13,7 +14,6 @@ const sutras = [
     unit: '部',
     durationSeconds: 300,
     chapters: 1,
-    completions: 234,
     icon: '✨',
     color: '#7c3aed',
     bgColor: 'from-purple-500 to-pink-500',
@@ -35,7 +35,6 @@ const sutras = [
     unit: '部',
     durationSeconds: 900,
     chapters: 1,
-    completions: 156,
     icon: '🪷',
     color: '#ea580c',
     bgColor: 'from-amber-500 to-orange-500',
@@ -55,7 +54,6 @@ const sutras = [
     unit: '部',
     durationSeconds: 1200,
     chapters: 32,
-    completions: 112,
     icon: '⚔️',
     color: '#475569',
     bgColor: 'from-slate-600 to-gray-700',
@@ -64,104 +62,94 @@ const sutras = [
 
 尔时世尊食时，着衣持钵，入舍卫大城乞食。于其城中次第乞已，还至本处。饭食讫，收衣钵，洗足已，敷座而坐。`,
   },
-  {
-    id: 4,
-    name: '地藏经',
-    sanskrit: '地藏菩萨本愿经',
-    description: '地藏菩萨救度地狱众生的大愿经典',
-    quantity: 1,
-    unit: '部',
-    durationSeconds: 3600,
-    chapters: 13,
-    completions: 45,
-    icon: '🙏',
-    color: '#16a34a',
-    bgColor: 'from-green-600 to-teal-600',
-    isHot: false,
-    text: `尔时释迦牟尼佛告文殊师利法王子菩萨摩诃萨：汝观是一切诸佛菩萨善根，一切世间天、人、阿修罗，闻汝所说，皆得闻识。`,
-  },
-  {
-    id: 5,
-    name: '普门品',
-    sanskrit: '观世音菩萨普门品',
-    description: '《法华经》章节，赞叹观世音菩萨救苦救难',
-    quantity: 1,
-    unit: '品',
-    durationSeconds: 600,
-    chapters: 1,
-    completions: 89,
-    icon: '🧘',
-    color: '#2563eb',
-    bgColor: 'from-blue-600 to-indigo-600',
-    isHot: false,
-    text: `尔时无尽意菩萨即从座起，偏袒右肩，合掌向佛，而作是言：世尊，观世音菩萨以何因缘名观世音？`,
-  },
-  {
-    id: 6,
-    name: '药师经',
-    sanskrit: '药师琉璃光如来本愿功德经',
-    description: '消灾延寿，药师如来的慈悲愿力',
-    quantity: 1,
-    unit: '部',
-    durationSeconds: 2700,
-    chapters: 12,
-    completions: 67,
-    icon: '💊',
-    color: '#dc2626',
-    bgColor: 'from-red-600 to-rose-600',
-    isHot: false,
-    text: `如是我闻，一时薄伽梵游化诸国，至广严城住乐音树下，与大苾刍众八千人俱。`,
-  },
-]
-
-const smartTemplates: PracticeTemplate[] = [
-  {
-    id: 'xin-jing',
-    name: '诵《心经》1 部',
-    subtitle: '般若波罗蜜多心经 · 约5分钟',
-    quantity: 1,
-    unit: '部',
-    durationSeconds: 300,
-    audioGuide: '开始诵经，般若波罗蜜多心经',
-    color: '#7c3aed',
-    bgColor: 'from-purple-500 to-pink-500',
-  },
-  {
-    id: 'amituo-jing',
-    name: '诵《阿弥陀经》1 部',
-    subtitle: '佛说阿弥陀经 · 约15分钟',
-    quantity: 1,
-    unit: '部',
-    durationSeconds: 900,
-    audioGuide: '开始诵经，南无阿弥陀佛',
-    color: '#ea580c',
-    bgColor: 'from-amber-500 to-orange-500',
-  },
-  {
-    id: 'jingang-jing',
-    name: '诵《金刚经》1 部',
-    subtitle: '金刚般若波罗蜜经 · 约20分钟',
-    quantity: 1,
-    unit: '部',
-    durationSeconds: 1200,
-    audioGuide: '开始诵经，金刚经',
-    color: '#475569',
-    bgColor: 'from-slate-600 to-gray-700',
-  },
 ]
 
 export default function SutraPage() {
+  const [smartTemplates, setSmartTemplates] = useState<PracticeTemplate[]>([])
   const [selectedSutra, setSelectedSutra] = useState<typeof sutras[0] | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showSmart, setShowSmart] = useState(false)
-  const [completedToday, setCompletedToday] = useState(1)
-  const [completedWeek, setCompletedWeek] = useState(5)
-  const [completedTotal, setCompletedTotal] = useState(23)
+  const [completedToday, setCompletedToday] = useState(0)
+  const [completedWeek, setCompletedWeek] = useState(0)
+  const [completedTotal, setCompletedTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  const handleComplete = () => {
-    setCompletedToday((prev) => prev + 1)
-    setCompletedWeek((prev) => prev + 1)
-    setCompletedTotal((prev) => prev + 1)
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [templateData, statsData, weeklyData] = await Promise.all([
+        templateApi.getTemplatesByType('nianjing'),
+        recordsApi.getStats(),
+        recordsApi.getWeekly()
+      ])
+
+      // 转换模板数据
+      const colors = ['#7c3aed', '#ea580c', '#475569']
+      const bgColors = ['from-purple-500 to-pink-500', 'from-amber-500 to-orange-500', 'from-slate-600 to-gray-700']
+
+      const convertedTemplates: PracticeTemplate[] = templateData.map((t, idx) => ({
+        id: `template-${t.id}`,
+        name: t.name,
+        subtitle: t.voiceGuide || '诵经修行',
+        quantity: t.quantity,
+        unit: t.unit,
+        durationSeconds: t.durationSeconds,
+        audioGuide: t.voiceGuide || '开始诵经',
+        color: colors[idx % colors.length],
+        bgColor: bgColors[idx % bgColors.length],
+        templateId: t.id,
+      }))
+
+      setSmartTemplates(convertedTemplates)
+      setCompletedTotal(statsData.totalNianjing)
+
+      // 计算今日诵经（1部=50经验）
+      const today = new Date().toISOString().split('T')[0]
+      const todayData = weeklyData.dailyData.find(d => d.date === today)
+      setCompletedToday(todayData ? Math.floor(todayData.totalExp / 50) : 0)
+      setCompletedWeek(Math.floor(weeklyData.weekTotal / 50))
+    } catch (err) {
+      console.error('加载数据失败:', err)
+      setSmartTemplates([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleComplete = async (template: PracticeTemplate) => {
+    const token = storage.getToken()
+    if (!token || !template.templateId) return
+
+    try {
+      await recordsApi.createRecord({
+        templateId: template.templateId,
+        practiceType: 'nianjing',
+        practiceName: template.name,
+        quantity: template.quantity,
+        unit: template.unit,
+        durationSeconds: template.durationSeconds,
+        practiceMode: 'smart',
+        sessionType: 'general',
+      })
+
+      setCompletedToday((prev) => prev + template.quantity)
+      setCompletedWeek((prev) => prev + template.quantity)
+      setCompletedTotal((prev) => prev + template.quantity)
+    } catch (err) {
+      console.error('保存记录失败:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-[#8b2323]" />
+      </div>
+    )
   }
 
   // 经文详情页
@@ -274,10 +262,16 @@ export default function SutraPage() {
           <p className="text-xs text-gray-500 mb-4 leading-relaxed">
             选择诵经功课 → 点击开始 → 自动倒计时 → 时间到即完成1部
           </p>
-          <SmartCountdown
-            templates={smartTemplates}
-            onComplete={handleComplete}
-          />
+          {smartTemplates.length > 0 ? (
+            <SmartCountdown
+              templates={smartTemplates}
+              onComplete={handleComplete}
+            />
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>请先登录后使用修行功能</p>
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -305,7 +299,6 @@ export default function SutraPage() {
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
                       <span>{sutra.chapters}品</span>
                       <span>{Math.floor(sutra.durationSeconds / 60)}分钟</span>
-                      <span>{sutra.completions}人诵读</span>
                     </div>
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
