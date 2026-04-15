@@ -1,9 +1,6 @@
 import { ChevronRight, CheckCircle, Circle, Bell, Sun, Moon } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 
-const hour = new Date().getHours()
-const isMorning = hour >= 5 && hour < 12
-
 const morningSteps = [
   {
     id: 'lijing',
