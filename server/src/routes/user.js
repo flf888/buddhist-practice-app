@@ -1,5 +1,5 @@
 import express from 'express';
-import db from '../db.js';
+import db from '../db-json.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -18,7 +18,8 @@ router.get('/profile', authMiddleware, (req, res) => {
     });
   }
 
-  // 计算称号
+  // 计算称号（保护 level 为 null 的情况）
+  const userLevel = user.level || 1;
   const titles = [
     { maxLevel: 2, title: '初学居士' },
     { maxLevel: 4, title: '精进居士' },
@@ -29,10 +30,10 @@ router.get('/profile', authMiddleware, (req, res) => {
     { maxLevel: 20, title: '圆满行者' },
   ];
 
-  const title = titles.find(t => user.level <= t.maxLevel)?.title || '圆满行者';
+  const title = titles.find(t => userLevel <= t.maxLevel)?.title || '圆满行者';
 
   // 计算升级所需经验
-  const expForNextLevel = (user.level + 1) * 100;
+  const expForNextLevel = (userLevel + 1) * 100;
 
   res.json({
     code: 0,
@@ -43,12 +44,12 @@ router.get('/profile', authMiddleware, (req, res) => {
       nickname: user.nickname,
       avatarUrl: user.avatar_url,
       phone: user.phone,
-      level: user.level,
+      level: userLevel,
       title,
-      totalExp: user.total_exp,
+      totalExp: user.total_exp || 0,
       expForNextLevel,
-      totalDays: user.total_days,
-      streakDays: user.streak_days,
+      totalDays: user.total_days || 0,
+      streakDays: user.streak_days || 0,
       lastPracticeDate: user.last_practice_date,
       createdAt: user.created_at
     }

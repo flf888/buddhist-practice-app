@@ -1,5 +1,5 @@
 import express from 'express';
-import db from '../db.js';
+import db from '../db-json.js';
 
 const router = express.Router();
 
@@ -44,7 +44,7 @@ router.get('/', (req, res) => {
 router.get('/:type', (req, res) => {
   const { type } = req.params;
 
-  const validTypes = ['nianfo', 'nianzhou', 'nianjing', 'baichan'];
+  const validTypes = ['nianfo', 'nianzhou', 'nianjing', 'chanhui', 'baichan'];
   if (!validTypes.includes(type)) {
     return res.json({
       code: 3001,

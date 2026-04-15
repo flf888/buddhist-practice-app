@@ -126,16 +126,26 @@ CREATE INDEX idx_templates_category ON practice_templates(category);
 
 | name | type | category | quantity | unit | duration_seconds | voice_guide |
 |------|------|----------|----------|------|------------------|-------------|
+| **念佛 (nianfo)** |
 | 念佛10遍 | nianfo | general | 10 | 遍 | 30 | 开始念佛，净念相继 |
 | 念佛108遍 | nianfo | general | 108 | 遍 | 300 | 南无阿弥陀佛 |
 | 念佛1000遍 | nianfo | general | 1000 | 遍 | 2700 | 精进念佛，万德洪名 |
+| **诵经 (nianjing)** |
 | 诵心经 | nianjing | morning | 1 | 部 | 120 | 开始诵经，般若波罗蜜 |
 | 诵阿弥陀经 | nianjing | evening | 1 | 部 | 300 | 开始诵经，极乐世界 |
+| 诵大悲咒 | nianjing | general | 1 | 部 | 180 | 大悲神咒，妙用难测 |
+| 诵地藏经 | nianjing | general | 1 | 品 | 600 | 地藏菩萨本愿经 |
+| **持咒 (nianzhou)** |
 | 持大悲咒3遍 | nianzhou | morning | 3 | 遍 | 120 | 持咒消障，慈悲救苦 |
 | 持大悲咒7遍 | nianzhou | morning | 7 | 遍 | 280 | 持咒消障，慈悲救苦 |
 | 持大悲咒21遍 | nianzhou | general | 21 | 遍 | 840 | 持咒消障，慈悲救苦 |
 | 持往生咒 | nianzhou | evening | 7 | 遍 | 280 | 持往生咒，净除业障 |
 | 六字大明咒 | nianzhou | general | 108 | 遍 | 180 | 唵嘛呢叭咪吽 |
+| **忏悔 (chanhui)** |
+| 忏悔三礼 | chanhui | morning | 3 | 遍 | 60 | 往昔所造诸恶业，皆由无始贪嗔痴 |
+| 忏悔七礼 | chanhui | general | 7 | 遍 | 140 | 从身语意之所生，今对佛前皆忏悔 |
+| 礼佛大忏悔文 | chanhui | general | 1 | 遍 | 300 | 大慈大悲愍众生，礼敬诸佛消业障 |
+| **拜忏 (baichan)** |
 | 礼佛3拜 | baichan | general | 3 | 拜 | 60 | 一拜消灾障 |
 | 礼佛7拜 | baichan | general | 7 | 拜 | 140 | 精进拜忏 |
 | 礼佛21拜 | baichan | general | 21 | 拜 | 420 | 诚心拜忏 |
@@ -177,8 +187,9 @@ CREATE INDEX idx_records_type ON practice_records(practice_type);
 | 修行类型 | 单位 | 经验值 |
 |----------|------|--------|
 | 念佛 | 遍 | 1 |
-| 诵经 | 部 | 50 |
+| 诵经 | 部/品 | 50 |
 | 持咒 | 遍 | 2 |
+| 忏悔 | 遍 | 3 |
 | 拜忏 | 拜 | 5 |
 
 ---

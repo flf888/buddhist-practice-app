@@ -13,6 +13,7 @@ export interface PracticeTemplate {
   color: string
   bgColor: string
   templateId?: number
+  practiceType?: string // 修行类型：nianfo/nianjing/nianzhou/chanhui/baichan
 }
 
 // 本地默认遍数配置（未登录时显示，登录后可调）
@@ -71,6 +72,8 @@ export default function SmartCountdown({
           }
           // 震动提示
           if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+          // 语音提示：功课结束
+          speak('功课结束')
           // 显示成功提示
           showToast(`${selectedTemplate.name} 已完成！`, 'success')
           return 0
@@ -87,15 +90,34 @@ export default function SmartCountdown({
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
 
+  // 语音提示工具函数
+  const speak = (text: string) => {
+    try {
+      if ('speechSynthesis' in window) {
+        // 先取消之前的语音
+        speechSynthesis.cancel()
+        const utterance = new SpeechSynthesisUtterance(text)
+        utterance.lang = 'zh-CN'
+        utterance.rate = 0.9
+        utterance.volume = 1
+        speechSynthesis.speak(utterance)
+      }
+    } catch (e) {
+      console.log('语音提示不可用:', e)
+    }
+  }
+
   const startPractice = () => {
     setPhase('countdown')
     setTimeLeft(selectedTemplate.durationSeconds)
-    // 模拟语音引导（实际项目替换为真实TTS或音频文件）
+    setIsRunning(true)
+    // 语音提示：开始
+    speak('开始')
+    // 延迟播放功课引导语音
     if (selectedTemplate.audioGuide) {
-      const utterance = new SpeechSynthesisUtterance(selectedTemplate.audioGuide)
-      utterance.lang = 'zh-CN'
-      utterance.rate = 0.9
-      speechSynthesis.speak(utterance)
+      setTimeout(() => {
+        speak(selectedTemplate.audioGuide)
+      }, 800)
     }
   }
 

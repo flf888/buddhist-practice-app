@@ -1,5 +1,5 @@
 import express from 'express';
-import db from '../db.js';
+import db from '../db-json.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -9,6 +9,7 @@ const EXP_RULES = {
   nianfo: 1,     // 1遍 = 1经验
   nianzhou: 2,   // 1遍 = 2经验
   nianjing: 50,  // 1部 = 50经验
+  chanhui: 3,    // 1遍 = 3经验
   baichan: 5     // 1拜 = 5经验
 };
 
@@ -31,6 +32,9 @@ router.post('/', authMiddleware, (req, res) => {
 
   // 获取当前用户信息
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  if (!user) {
+    return res.json({ code: 2001, message: '用户不存在', data: null });
+  }
 
   // 获取今天的日期
   const today = new Date().toISOString().split('T')[0];
@@ -66,6 +70,8 @@ router.post('/', authMiddleware, (req, res) => {
 
   // 开启事务
   const transaction = db.transaction(() => {
+    console.log('[DEBUG records] Transaction starting, userId:', userId, 'expGained:', expGained);
+    
     // 插入修行记录
     const result = db.prepare(`
       INSERT INTO practice_records
@@ -73,8 +79,10 @@ router.post('/', authMiddleware, (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(userId, templateId || null, practiceType, practiceName, quantity, unit, durationSeconds || 0, practiceMode, sessionType, expGained, today);
 
+    console.log('[DEBUG records] INSERT done, lastInsertRowid:', result.lastInsertRowid);
+
     // 更新用户信息
-    db.prepare(`
+    const updateResult = db.prepare(`
       UPDATE users SET
         total_exp = ?,
         level = ?,
@@ -84,17 +92,21 @@ router.post('/', authMiddleware, (req, res) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(newTotalExp, newLevel, newTotalDays, newStreakDays, today, userId);
+    
+    console.log('[DEBUG records] UPDATE done, changes:', updateResult.changes);
 
     return result.lastInsertRowid;
   });
 
   const recordId = transaction();
+  console.log('[DEBUG records] recordId:', recordId);
 
   // 检查成就
   const unlockedAchievements = checkAchievements(userId, {
     nianfoCount: practiceType === 'nianfo' ? quantity : 0,
     nianzhouCount: practiceType === 'nianzhou' ? quantity : 0,
     nianjingCount: practiceType === 'nianjing' ? quantity : 0,
+    chanhuiCount: practiceType === 'chanhui' ? quantity : 0,
     baichanCount: practiceType === 'baichan' ? quantity : 0,
     streakDays: newStreakDays,
     totalDays: newTotalDays,
@@ -140,9 +152,10 @@ router.get('/', authMiddleware, (req, res) => {
     params.push(endDate);
   }
 
-  // 获取总数
+  // 获取总数（无记录时返回0）
   const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as count');
-  const total = db.prepare(countSql).get(...params).count;
+  const countResult = db.prepare(countSql).get(...params);
+  const total = countResult?.count ?? 0;
 
   // 分页查询
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
@@ -180,7 +193,12 @@ router.get('/', authMiddleware, (req, res) => {
 router.get('/stats', authMiddleware, (req, res) => {
   const userId = req.user.id;
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) || {
+    total_exp: 0,
+    total_days: 0,
+    streak_days: 0,
+    last_practice_date: null
+  };
 
   // 统计各类型总数
   const stats = db.prepare(`
@@ -197,10 +215,11 @@ router.get('/stats', authMiddleware, (req, res) => {
     totalNianfo: 0,
     totalNianjing: 0,
     totalNianzhou: 0,
+    totalChanhui: 0,
     totalBaichan: 0,
-    totalExp: user.total_exp,
-    totalDays: user.total_days,
-    streakDays: user.streak_days,
+    totalExp: user.total_exp || 0,
+    totalDays: user.total_days || 0,
+    streakDays: user.streak_days || 0,
     lastPracticeDate: user.last_practice_date
   };
 
@@ -208,6 +227,7 @@ router.get('/stats', authMiddleware, (req, res) => {
     if (s.practice_type === 'nianfo') result.totalNianfo = s.total_quantity;
     if (s.practice_type === 'nianjing') result.totalNianjing = s.total_quantity;
     if (s.practice_type === 'nianzhou') result.totalNianzhou = s.total_quantity;
+    if (s.practice_type === 'chanhui') result.totalChanhui = s.total_quantity;
     if (s.practice_type === 'baichan') result.totalBaichan = s.total_quantity;
   }
 
@@ -279,7 +299,7 @@ router.get('/weekly', authMiddleware, (req, res) => {
 
 // 检查成就
 function checkAchievements(userId, stats) {
-  const unlocked = [];
+  const unlockedAchievements = [];
 
   // 获取用户累计数据
   const totals = db.prepare(`
@@ -287,9 +307,19 @@ function checkAchievements(userId, stats) {
       SUM(CASE WHEN practice_type = 'nianfo' THEN quantity ELSE 0 END) as total_nianfo,
       SUM(CASE WHEN practice_type = 'nianjing' THEN quantity ELSE 0 END) as total_nianjing,
       SUM(CASE WHEN practice_type = 'nianzhou' THEN quantity ELSE 0 END) as total_nianzhou,
+      SUM(CASE WHEN practice_type = 'chanhui' THEN quantity ELSE 0 END) as total_chanhui,
       SUM(CASE WHEN practice_type = 'baichan' THEN quantity ELSE 0 END) as total_baichan
     FROM practice_records WHERE user_id = ?
-  `).get(userId);
+  `).get(userId) || {};
+
+  // 确保 totals 中的值不为 null/undefined
+  const safeTotals = {
+    total_nianfo: totals.total_nianfo || 0,
+    total_nianjing: totals.total_nianjing || 0,
+    total_nianzhou: totals.total_nianzhou || 0,
+    total_chanhui: totals.total_chanhui || 0,
+    total_baichan: totals.total_baichan || 0,
+  };
 
   // 获取所有成就
   const achievements = db.prepare('SELECT * FROM achievements').all();
@@ -303,45 +333,45 @@ function checkAchievements(userId, stats) {
     for (const ach of achievements) {
       if (unlockedIds.includes(ach.id)) continue;
 
-      let unlocked = false;
+      let isUnlocked = false;
       let currentValue = 0;
 
       switch (ach.condition_type) {
         case 'nianfo_count':
-          currentValue = totals.total_nianfo + stats.nianfoCount;
-          unlocked = currentValue >= ach.condition_value;
+          currentValue = safeTotals.total_nianfo + stats.nianfoCount;
+          isUnlocked = currentValue >= ach.condition_value;
           break;
         case 'nianfo_total':
-          currentValue = totals.total_nianfo;
-          unlocked = currentValue >= ach.condition_value;
+          currentValue = safeTotals.total_nianfo;
+          isUnlocked = currentValue >= ach.condition_value;
           break;
         case 'nianjing_count':
-          currentValue = totals.total_nianjing + stats.nianjingCount;
-          unlocked = currentValue >= ach.condition_value;
+          currentValue = safeTotals.total_nianjing + stats.nianjingCount;
+          isUnlocked = currentValue >= ach.condition_value;
           break;
         case 'nianzhou_total':
-          currentValue = totals.total_nianzhou;
-          unlocked = currentValue >= ach.condition_value;
+          currentValue = safeTotals.total_nianzhou;
+          isUnlocked = currentValue >= ach.condition_value;
           break;
         case 'baichan_count':
-          currentValue = totals.total_baichan + stats.baichanCount;
-          unlocked = currentValue >= ach.condition_value;
+          currentValue = safeTotals.total_baichan + stats.baichanCount;
+          isUnlocked = currentValue >= ach.condition_value;
           break;
         case 'streak_days':
           currentValue = stats.streakDays;
-          unlocked = currentValue >= ach.condition_value;
+          isUnlocked = currentValue >= ach.condition_value;
           break;
         case 'total_days':
           currentValue = stats.totalDays;
-          unlocked = currentValue >= ach.condition_value;
+          isUnlocked = currentValue >= ach.condition_value;
           break;
         case 'level':
           currentValue = stats.level;
-          unlocked = currentValue >= ach.condition_value;
+          isUnlocked = currentValue >= ach.condition_value;
           break;
       }
 
-      if (unlocked) {
+      if (isUnlocked) {
         db.prepare(`
           INSERT INTO user_achievements (user_id, achievement_id)
           VALUES (?, ?)
@@ -352,7 +382,7 @@ function checkAchievements(userId, stats) {
           UPDATE users SET total_exp = total_exp + ? WHERE id = ?
         `).run(ach.exp_reward, userId);
 
-        unlocked.push({
+        unlockedAchievements.push({
           code: ach.code,
           name: ach.name,
           description: ach.description,
@@ -363,11 +393,11 @@ function checkAchievements(userId, stats) {
     }
   });
 
-  if (unlocked.length > 0) {
+  if (unlockedAchievements.length > 0) {
     transaction();
   }
 
-  return unlocked;
+  return unlockedAchievements;
 }
 
 export default router;

@@ -49,4 +49,9 @@ export function generateToken(user) {
   );
 }
 
+// 验证Token（供其他模块使用）
+export function verifyToken(token) {
+  return jwt.verify(token, JWT_SECRET);
+}
+
 export { JWT_SECRET };

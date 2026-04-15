@@ -3,8 +3,10 @@ import { Repeat, Flame, Loader2 } from 'lucide-react'
 import SmartCountdown from '../components/SmartCountdown'
 import type { PracticeTemplate } from '../components/SmartCountdown'
 import { templateApi, recordsApi, storage } from '../services/api'
+import { useApp } from '../contexts/AppContext'
 
 export default function PracticePage() {
+  const { navigate } = useApp()
   const [templates, setTemplates] = useState<PracticeTemplate[]>([])
   const [completedToday, setCompletedToday] = useState(0)
   const [completedWeek, setCompletedWeek] = useState(0)
@@ -18,13 +20,9 @@ export default function PracticePage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [templateData, statsData, weeklyData] = await Promise.all([
-        templateApi.getTemplatesByType('nianfo'),
-        recordsApi.getStats(),
-        recordsApi.getWeekly()
-      ])
+      // 模板加载不需要登录
+      const templateData = await templateApi.getTemplatesByType('nianfo')
 
-      // 转换模板数据
       const colors = ['#d97706', '#dc2626', '#9333ea', '#059669', '#2563eb']
       const bgColors = ['from-amber-500 to-orange-500', 'from-red-500 to-rose-600', 'from-purple-600 to-pink-600', 'from-emerald-500 to-teal-600', 'from-blue-500 to-indigo-600']
 
@@ -42,16 +40,26 @@ export default function PracticePage() {
       }))
 
       setTemplates(convertedTemplates)
-      setCompletedTotal(statsData.totalNianfo)
-      setCompletedWeek(weeklyData.weekTotal)
 
-      // 计算今日念佛数
-      const today = new Date().toISOString().split('T')[0]
-      const todayData = weeklyData.dailyData.find(d => d.date === today)
-      setCompletedToday(todayData?.totalExp || 0)
+      // 用户数据需要登录，分开处理
+      const token = storage.getToken()
+      if (token) {
+        try {
+          const [statsData, weeklyData] = await Promise.all([
+            recordsApi.getStats(),
+            recordsApi.getWeekly()
+          ])
+          setCompletedTotal(statsData.totalNianfo)
+          setCompletedWeek(weeklyData.weekTotal)
+          const today = new Date().toISOString().split('T')[0]
+          const todayData = weeklyData.dailyData.find(d => d.date === today)
+          setCompletedToday(todayData?.totalExp || 0)
+        } catch {
+          // 用户数据加载失败不影响模板显示
+        }
+      }
     } catch (err) {
       console.error('加载数据失败:', err)
-      // 如果未登录或token失效，使用空模板
       setTemplates([])
     } finally {
       setLoading(false)
@@ -74,7 +82,6 @@ export default function PracticePage() {
         sessionType: 'general',
       })
 
-      // 更新本地统计
       setCompletedToday((prev) => prev + template.quantity)
       setCompletedWeek((prev) => prev + template.quantity)
       setCompletedTotal((prev) => prev + template.quantity)
@@ -102,49 +109,70 @@ export default function PracticePage() {
         <p className="text-sm opacity-90">净念相继，心不散乱</p>
       </div>
 
-      {/* 智能功课计数 */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs text-emerald-600 font-medium">智能功课模式</span>
-        </div>
-        <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-          选择功课模板 → 点击开始 → 自动倒计时 → 时间到即完成对应遍数
-        </p>
-        {templates.length > 0 ? (
-          <SmartCountdown
-            templates={templates}
-            onComplete={handleComplete}
-            practiceType="practice"
-          />
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>请先登录后使用修行功能</p>
+      {/* 未登录时显示引导 */}
+      {!storage.getToken() ? (
+        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-amber-50 mx-auto flex items-center justify-center">
+            <Repeat className="w-8 h-8 text-amber-500" />
           </div>
-        )}
-      </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">请先登录</h3>
+            <p className="text-sm text-gray-500">登录后可记录念佛数据，开启智能功课</p>
+          </div>
+          <button
+            onClick={() => navigate('profile')}
+            className="w-full py-4 bg-gradient-to-r from-[#8b2323] to-[#a83232] text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
+          >
+            去登录
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* 智能功课计数 */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs text-emerald-600 font-medium">智能功课模式</span>
+            </div>
+            <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+              选择功课模板 → 点击开始 → 自动倒计时 → 时间到即完成对应遍数
+            </p>
+            {templates.length > 0 ? (
+              <SmartCountdown
+                templates={templates}
+                onComplete={handleComplete}
+                practiceType="practice"
+              />
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>暂无念佛模板</p>
+              </div>
+            )}
+          </div>
 
-      {/* 今日统计 */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <Flame className="w-5 h-5 text-amber-500" />
-          今日念佛统计
-        </h3>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center p-3 bg-amber-50 rounded-xl">
-            <p className="text-2xl font-bold text-amber-600">{completedToday}</p>
-            <p className="text-xs text-gray-500">今日经验</p>
+          {/* 今日统计 */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <Flame className="w-5 h-5 text-amber-500" />
+              今日念佛统计
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 bg-amber-50 rounded-xl">
+                <p className="text-2xl font-bold text-amber-600">{completedToday}</p>
+                <p className="text-xs text-gray-500">今日经验</p>
+              </div>
+              <div className="text-center p-3 bg-orange-50 rounded-xl">
+                <p className="text-2xl font-bold text-orange-600">{completedWeek}</p>
+                <p className="text-xs text-gray-500">本周经验</p>
+              </div>
+              <div className="text-center p-3 bg-[#faf8f5] rounded-xl">
+                <p className="text-2xl font-bold text-[#5c4033]">{(completedTotal / 10000).toFixed(1)}万</p>
+                <p className="text-xs text-gray-500">念佛总数</p>
+              </div>
+            </div>
           </div>
-          <div className="text-center p-3 bg-orange-50 rounded-xl">
-            <p className="text-2xl font-bold text-orange-600">{completedWeek}</p>
-            <p className="text-xs text-gray-500">本周经验</p>
-          </div>
-          <div className="text-center p-3 bg-[#faf8f5] rounded-xl">
-            <p className="text-2xl font-bold text-[#5c4033]">{(completedTotal / 10000).toFixed(1)}万</p>
-            <p className="text-xs text-gray-500">念佛总数</p>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* 修行提示 */}
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-100">

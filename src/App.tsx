@@ -17,7 +17,7 @@ function AppContent() {
     { id: 'home', label: '首页', icon: Home },
     { id: 'practice', label: '念佛', icon: Repeat },
     { id: 'chant', label: '持咒', icon: Sparkles },
-    { id: 'baichan', label: '拜忏', icon: Heart },
+    { id: 'baichan', label: '忏悔', icon: Heart },
     { id: 'sutra', label: '诵经', icon: BookOpen },
     { id: 'profile', label: '我的', icon: User },
   ]

@@ -5,6 +5,7 @@ import {
   Heart, HelpCircle, Minus, Plus, LogOut, Shield,
   MessageCircle, Loader2
 } from 'lucide-react'
+import { useApp } from '../contexts/AppContext'
 import {
   authApi,
   settingsApi,
@@ -46,10 +47,12 @@ const defaultStats = {
   totalNianfo: 0,
   totalNianjing: 0,
   totalNianzhou: 0,
+  totalChanhui: 0,
   totalBaichan: 0,
 }
 
 export default function ProfilePage() {
+  const { showToast } = useApp()
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loginStep, setLoginStep] = useState<'choice' | 'phone' | 'bind'>('choice')
@@ -78,10 +81,34 @@ export default function ProfilePage() {
     }
   }, [])
 
-  // 加载用户数据
-  const loadUserData = async () => {
+  // 绑定手机号
+  const confirmBindPhone = async () => {
+    if (phone.length !== 11) return
+    setLoading(true)
+    setError('')
     try {
-      setLoading(true)
+      await authApi.bindPhone(phone)
+      setIsLoggedIn(true)  // 重要：标记为已登录
+      setLoginStep('choice')
+      showToast('绑定成功，欢迎您！', 'success')
+      await loadUserData()
+    } catch (err) {
+      const msg = String(err)
+      setError(msg)
+      if (msg.includes('过期') || msg.includes('重新登录')) {
+        storage.removeToken()
+        setIsLoggedIn(false)
+      }
+      showToast('绑定失败：' + msg, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 加载用户数据（允许部分失败，显示默认数据）
+  const loadUserData = async () => {
+    setLoading(true)
+    try {
       const [profileData, statsData, achievementsData, weekly, settingsData] = await Promise.all([
         userApi.getProfile(),
         recordsApi.getStats(),
@@ -90,20 +117,72 @@ export default function ProfilePage() {
         settingsApi.getSettings()
       ])
 
-      setProfile(profileData)
-      setStats(statsData)
-      setAchievements(achievementsData)
-      setWeeklyData(weekly.dailyData.map(d => ({ day: d.day, value: d.totalExp })))
+      // 安全设置默认值
+      setProfile(profileData || {
+        id: 0,
+        unionId: '',
+        nickname: '善知识',
+        title: '初学居士',
+        level: 1,
+        totalExp: 0,
+        expForNextLevel: 100,
+        totalDays: 0,
+        streakDays: 0,
+        createdAt: ''
+      })
+      setStats(statsData || {
+        totalNianfo: 0,
+        totalNianjing: 0,
+        totalNianzhou: 0,
+        totalChanhui: 0,
+        totalBaichan: 0,
+        totalExp: 0,
+        totalDays: 0,
+        streakDays: 0
+      })
+      setAchievements(achievementsData || [])
+      setWeeklyData(weekly?.dailyData?.map(d => ({ day: d.day, value: d.totalExp || 0 })) || [])
       // 转换UserSettings为普通对象
       const settingsObj: Record<string, number> = { ...settingsData }
       setUserSettings(settingsObj)
     } catch (err) {
       console.error('加载用户数据失败:', err)
-      // 如果是token失效，跳转到未登录状态
-      if (String(err).includes('Token')) {
-        setIsLoggedIn(false)
+      const msg = String(err)
+      // 如果是登录过期，回到登录页
+      if (msg.includes('过期') || msg.includes('重新登录')) {
         storage.removeToken()
+        setIsLoggedIn(false)
+        setProfile(null)
+        setStats(null)
+        showToast('登录已过期，请重新登录', 'error')
+        return
       }
+      // 其他错误，使用默认数据继续显示
+      setProfile({
+        id: 0,
+        unionId: '',
+        nickname: '善知识',
+        title: '初学居士',
+        level: 1,
+        totalExp: 0,
+        expForNextLevel: 100,
+        totalDays: 0,
+        streakDays: 0,
+        createdAt: ''
+      })
+      setStats({
+        totalNianfo: 0,
+        totalNianjing: 0,
+        totalNianzhou: 0,
+        totalChanhui: 0,
+        totalBaichan: 0,
+        totalExp: 0,
+        totalDays: 0,
+        streakDays: 0
+      })
+      setAchievements([])
+      setWeeklyData([])
+      setUserSettings({})
     } finally {
       setLoading(false)
     }
@@ -178,7 +257,43 @@ export default function ProfilePage() {
       setLoginStep('choice')
       await loadUserData()
     } catch (err) {
-      setError(String(err))
+      const msg = String(err)
+      setError(msg)
+      if (msg.includes('过期') || msg.includes('重新登录')) {
+        storage.removeToken()
+        setIsLoggedIn(false)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 微信测试登录
+  const handleWechatTestLogin = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const result = await authApi.wechatLogin('test_code_000')
+      storage.setToken(result.token)
+      // 如果需要绑定手机，先去绑定（needBindPhone 在 user 对象内）
+      if (result.user?.needBindPhone) {
+        setLoginStep('bind')
+        showToast('请先绑定手机号完成注册', 'info')
+      } else {
+        setIsLoggedIn(true)  // 重要：标记为已登录
+        setLoginStep('choice')
+        showToast('登录成功！', 'success')
+        await loadUserData()
+      }
+    } catch (err) {
+      const msg = String(err)
+      setError(msg)
+      // 如果是登录过期，确保清除状态
+      if (msg.includes('过期') || msg.includes('重新登录')) {
+        storage.removeToken()
+        setIsLoggedIn(false)
+      }
+      showToast('登录失败：' + msg, 'error')
     } finally {
       setLoading(false)
     }
@@ -246,12 +361,7 @@ export default function ProfilePage() {
 
             {/* 微信登录 */}
             <button
-              onClick={() => {
-                const confirmed = window.confirm('即将调起微信授权（演示模式：点击确认继续）')
-                if (confirmed) {
-                  setLoginStep('phone')
-                }
-              }}
+              onClick={handleWechatTestLogin}
               className="w-full bg-gradient-to-r from-[#07c160] to-[#06ad56] text-white py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
             >
               <MessageCircle className="w-6 h-6" />
@@ -261,6 +371,56 @@ export default function ProfilePage() {
             <p className="text-xs text-gray-400 text-center leading-relaxed">
               登录即表示同意<span className="text-[#8b2323]">《用户协议》</span>和<span className="text-[#8b2323]">《隐私政策》</span>
             </p>
+          </div>
+        )}
+
+        {loginStep === 'bind' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <h3 className="font-bold text-gray-800 mb-1">绑定手机号</h3>
+              <p className="text-xs text-gray-500 mb-4">微信登录成功，请绑定手机号完成注册</p>
+
+              {/* 手机号 */}
+              <div className="mb-4">
+                <label className="text-xs text-gray-500 mb-1 block">手机号</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder="请输入手机号"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#8b2323]"
+                />
+              </div>
+
+              {/* 提示 */}
+              <div className="mb-4 bg-amber-50 rounded-lg p-2 border border-amber-200">
+                <p className="text-xs text-amber-700">
+                  <span className="font-semibold">测试模式：</span>
+                  验证码固定为 <span className="font-bold text-amber-900">123456</span>，直接点击确认绑定
+                </p>
+              </div>
+
+              {/* 确认绑定 */}
+              <button
+                onClick={confirmBindPhone}
+                disabled={phone.length !== 11 || loading}
+                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                  phone.length === 11
+                    ? 'bg-[#8b2323] text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                确认绑定
+              </button>
+            </div>
+
+            <button
+              onClick={() => setLoginStep('choice')}
+              className="w-full text-center text-sm text-gray-500 py-2"
+            >
+              返回选择登录方式
+            </button>
           </div>
         )}
 
@@ -361,6 +521,7 @@ export default function ProfilePage() {
     totalNianfo: defaultStats.totalNianfo,
     totalNianjing: defaultStats.totalNianjing,
     totalNianzhou: defaultStats.totalNianzhou,
+    totalChanhui: defaultStats.totalChanhui,
     totalBaichan: defaultStats.totalBaichan,
     totalExp: 0,
     totalDays: defaultStats.totalDays,
@@ -648,6 +809,15 @@ export default function ProfilePage() {
             <div>
               <p className="text-xl font-bold text-gray-800">{displayStats.totalNianzhou}</p>
               <p className="text-xs text-gray-500">持咒总数</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
+              <span className="text-lg">🙏</span>
+            </div>
+            <div>
+              <p className="text-xl font-bold text-gray-800">{displayStats.totalChanhui}</p>
+              <p className="text-xs text-gray-500">忏悔总数</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

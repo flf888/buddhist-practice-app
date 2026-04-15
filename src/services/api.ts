@@ -1,5 +1,5 @@
-// API配置
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// API配置 - 生产环境用相对路径，通过 Nginx 反向代理
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Token存储
 const TOKEN_KEY = 'buddhist_app_token';
@@ -41,7 +41,8 @@ async function request<T>(
   if (data.code !== 0) {
     if (data.code === 9001 || data.code === 9002) {
       storage.removeToken();
-      window.location.reload();
+      // 不再直接 reload，而是抛出特定错误让调用方处理
+      throw new Error('登录已过期，请重新登录');
     }
     throw new Error(data.message || '请求失败');
   }
@@ -77,6 +78,12 @@ export const authApi = {
   logout: () =>
     request<null>('/auth/logout', {
       method: 'POST',
+    }),
+
+  bindPhone: (phone: string) =>
+    request<User>('/auth/bind-phone', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
     }),
 };
 
@@ -269,6 +276,7 @@ export interface PracticeStats {
   totalNianfo: number;
   totalNianjing: number;
   totalNianzhou: number;
+  totalChanhui: number;
   totalBaichan: number;
   totalExp: number;
   totalDays: number;

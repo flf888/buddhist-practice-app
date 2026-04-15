@@ -3,8 +3,10 @@ import { Sparkles, Flame, Loader2 } from 'lucide-react'
 import SmartCountdown from '../components/SmartCountdown'
 import type { PracticeTemplate } from '../components/SmartCountdown'
 import { templateApi, recordsApi, storage } from '../services/api'
+import { useApp } from '../contexts/AppContext'
 
 export default function ChantPage() {
+  const { navigate } = useApp()
   const [templates, setTemplates] = useState<PracticeTemplate[]>([])
   const [completedToday, setCompletedToday] = useState(0)
   const [completedWeek, setCompletedWeek] = useState(0)
@@ -18,13 +20,9 @@ export default function ChantPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [templateData, statsData, weeklyData] = await Promise.all([
-        templateApi.getTemplatesByType('nianzhou'),
-        recordsApi.getStats(),
-        recordsApi.getWeekly()
-      ])
+      // 模板加载不需要登录
+      const templateData = await templateApi.getTemplatesByType('nianzhou')
 
-      // 转换模板数据
       const colors = ['#7c3aed', '#8b5cf6', '#db2777', '#059669', '#2563eb']
       const bgColors = ['from-purple-600 to-violet-600', 'from-purple-500 to-pink-500', 'from-pink-600 to-rose-600', 'from-emerald-600 to-teal-600', 'from-blue-600 to-indigo-600']
 
@@ -42,14 +40,24 @@ export default function ChantPage() {
       }))
 
       setTemplates(convertedTemplates)
-      setCompletedTotal(statsData.totalNianzhou)
 
-      // 计算今日持咒经验
-      const today = new Date().toISOString().split('T')[0]
-      const todayData = weeklyData.dailyData.find(d => d.date === today)
-      // 持咒1遍=2经验
-      setCompletedToday(todayData ? Math.floor(todayData.totalExp * 0.5) : 0)
-      setCompletedWeek(Math.floor(weeklyData.weekTotal * 0.5))
+      // 用户数据需要登录，分开处理
+      const token = storage.getToken()
+      if (token) {
+        try {
+          const [statsData, weeklyData] = await Promise.all([
+            recordsApi.getStats(),
+            recordsApi.getWeekly()
+          ])
+          setCompletedTotal(statsData.totalNianzhou)
+          const today = new Date().toISOString().split('T')[0]
+          const todayData = weeklyData.dailyData.find(d => d.date === today)
+          setCompletedToday(todayData ? Math.floor(todayData.totalExp * 0.5) : 0)
+          setCompletedWeek(Math.floor(weeklyData.weekTotal * 0.5))
+        } catch {
+          // 用户数据加载失败不影响模板显示
+        }
+      }
     } catch (err) {
       console.error('加载数据失败:', err)
       setTemplates([])
@@ -90,6 +98,37 @@ export default function ChantPage() {
     )
   }
 
+  // 未登录时显示引导
+  if (!storage.getToken()) {
+    return (
+      <div className="px-4 py-4 space-y-4">
+        <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl p-5 text-white">
+          <div className="flex items-center gap-3 mb-1">
+            <Sparkles className="w-6 h-6" />
+            <h1 className="text-xl font-bold">持咒修行</h1>
+          </div>
+          <p className="text-sm opacity-90">持咒精进，消除业障</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-purple-50 mx-auto flex items-center justify-center">
+            <Sparkles className="w-8 h-8 text-purple-500" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">请先登录</h3>
+            <p className="text-sm text-gray-500">登录后可记录持咒数据，开启智能功课</p>
+          </div>
+          <button
+            onClick={() => navigate('profile')}
+            className="w-full py-4 bg-gradient-to-r from-[#8b2323] to-[#a83232] text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
+          >
+            去登录
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-4 py-4 space-y-4">
       {/* 头部 */}
@@ -118,7 +157,7 @@ export default function ChantPage() {
           />
         ) : (
           <div className="text-center py-8 text-gray-500">
-            <p>请先登录后使用修行功能</p>
+            <p>暂无持咒模板</p>
           </div>
         )}
       </div>

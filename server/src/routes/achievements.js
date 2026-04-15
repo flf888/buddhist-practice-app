@@ -1,5 +1,5 @@
 import express from 'express';
-import db from '../db.js';
+import db from '../db-json.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -18,17 +18,21 @@ router.get('/', authMiddleware, (req, res) => {
     unlockedMap[ua.achievement_id] = ua.unlocked_at;
   }
 
-  // 获取用户累计数据
+  // 获取用户累计数据（无记录时返回0）
   const totals = db.prepare(`
     SELECT
-      SUM(CASE WHEN practice_type = 'nianfo' THEN quantity ELSE 0 END) as total_nianfo,
-      SUM(CASE WHEN practice_type = 'nianjing' THEN quantity ELSE 0 END) as total_nianjing,
-      SUM(CASE WHEN practice_type = 'nianzhou' THEN quantity ELSE 0 END) as total_nianzhou,
-      SUM(CASE WHEN practice_type = 'baichan' THEN quantity ELSE 0 END) as total_baichan
+      COALESCE(SUM(CASE WHEN practice_type = 'nianfo' THEN quantity ELSE 0 END), 0) as total_nianfo,
+      COALESCE(SUM(CASE WHEN practice_type = 'nianjing' THEN quantity ELSE 0 END), 0) as total_nianjing,
+      COALESCE(SUM(CASE WHEN practice_type = 'nianzhou' THEN quantity ELSE 0 END), 0) as total_nianzhou,
+      COALESCE(SUM(CASE WHEN practice_type = 'baichan' THEN quantity ELSE 0 END), 0) as total_baichan
     FROM practice_records WHERE user_id = ?
-  `).get(userId);
+  `).get(userId) || { total_nianfo: 0, total_nianjing: 0, total_nianzhou: 0, total_baichan: 0 };
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) || {
+    streak_days: 0,
+    total_days: 0,
+    level: 1
+  };
 
   // 获取所有成就
   const achievements = db.prepare(`

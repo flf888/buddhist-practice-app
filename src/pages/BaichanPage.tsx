@@ -3,8 +3,10 @@ import { Heart, Flame, Calendar, Check, Loader2 } from 'lucide-react'
 import SmartCountdown from '../components/SmartCountdown'
 import type { PracticeTemplate } from '../components/SmartCountdown'
 import { templateApi, recordsApi, storage } from '../services/api'
+import { useApp } from '../contexts/AppContext'
 
 export default function BaichanPage() {
+  const { navigate } = useApp()
   const [templates, setTemplates] = useState<PracticeTemplate[]>([])
   const [completedToday, setCompletedToday] = useState(0)
   const [completedWeek, setCompletedWeek] = useState(0)
@@ -19,54 +21,65 @@ export default function BaichanPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [templateData, statsData, weeklyData, recordsData] = await Promise.all([
+      // 模板加载不需要登录 - 同时加载拜忏和忏悔模板
+      const [baichanData, chanhuiData] = await Promise.all([
         templateApi.getTemplatesByType('baichan'),
-        recordsApi.getStats(),
-        recordsApi.getWeekly(),
-        recordsApi.getRecords({ limit: 5, type: 'baichan' })
+        templateApi.getTemplatesByType('chanhui')
       ])
 
-      // 转换模板数据
-      const colors = ['#d97706', '#ea580c', '#dc2626', '#16a34a', '#7c3aed']
-      const bgColors = ['from-amber-500 to-orange-500', 'from-orange-500 to-red-500', 'from-red-500 to-rose-600', 'from-green-600 to-emerald-600', 'from-purple-600 to-pink-600']
+      const colors = ['#d97706', '#ea580c', '#dc2626', '#16a34a', '#7c3aed', '#db2777']
+      const bgColors = ['from-amber-500 to-orange-500', 'from-orange-500 to-red-500', 'from-red-500 to-rose-600', 'from-green-600 to-emerald-600', 'from-purple-600 to-pink-600', 'from-pink-600 to-rose-600']
 
-      const convertedTemplates: PracticeTemplate[] = templateData.map((t, idx) => ({
-        id: `template-${t.id}`,
-        name: t.name,
-        subtitle: t.voiceGuide || '礼佛修行',
-        quantity: t.quantity,
-        unit: t.unit,
-        durationSeconds: t.durationSeconds,
-        audioGuide: t.voiceGuide || '开始礼佛',
-        color: colors[idx % colors.length],
-        bgColor: bgColors[idx % bgColors.length],
-        templateId: t.id,
-      }))
+      // 先显示忏悔模板，再显示拜忏模板
+      const allTemplates = [...chanhuiData, ...baichanData]
+
+      const convertedTemplates: PracticeTemplate[] = allTemplates.map((t, idx) => {
+        // 从模板名称推断 practiceType（忏悔类用 chanhui，拜忏类用 baichan）
+        const isChanhui = chanhuiData.some(ct => ct.id === t.id)
+        return {
+          id: `template-${t.id}`,
+          name: t.name,
+          subtitle: t.voiceGuide || '礼佛修行',
+          quantity: t.quantity,
+          unit: t.unit,
+          durationSeconds: t.durationSeconds,
+          audioGuide: t.voiceGuide || '开始礼佛',
+          color: colors[idx % colors.length],
+          bgColor: bgColors[idx % bgColors.length],
+          templateId: t.id,
+          practiceType: isChanhui ? 'chanhui' : 'baichan',
+        }
+      })
 
       setTemplates(convertedTemplates)
-      setCompletedTotal(statsData.totalBaichan)
 
-      // 计算今日拜数（1拜=5经验）
-      const today = new Date().toISOString().split('T')[0]
-      const todayData = weeklyData.dailyData.find(d => d.date === today)
-      setCompletedToday(todayData ? Math.floor(todayData.totalExp / 5) : 0)
-      setCompletedWeek(Math.floor(weeklyData.weekTotal / 5))
-
-      // 转换最近记录
-      const sessions = recordsData.records.slice(0, 3).map(r => ({
-        name: r.practiceName,
-        date: r.practiceDate.slice(5).replace('-', '-'),
-        cycles: r.quantity
-      }))
-      setRecentSessions(sessions)
+      // 用户数据需要登录，分开处理
+      const token = storage.getToken()
+      if (token) {
+        try {
+          const [statsData, weeklyData, recordsData] = await Promise.all([
+            recordsApi.getStats(),
+            recordsApi.getWeekly(),
+            recordsApi.getRecords({ limit: 5, type: 'baichan' })
+          ])
+          setCompletedTotal(statsData.totalBaichan)
+          const today = new Date().toISOString().split('T')[0]
+          const todayData = weeklyData.dailyData.find(d => d.date === today)
+          setCompletedToday(todayData ? Math.floor(todayData.totalExp / 5) : 0)
+          setCompletedWeek(Math.floor(weeklyData.weekTotal / 5))
+          const sessions = recordsData.records.slice(0, 3).map(r => ({
+            name: r.practiceName,
+            date: r.practiceDate.slice(5).replace('-', '-'),
+            cycles: r.quantity
+          }))
+          setRecentSessions(sessions)
+        } catch {
+          // 用户数据加载失败不影响模板显示
+        }
+      }
     } catch (err) {
       console.error('加载数据失败:', err)
       setTemplates([])
-      setRecentSessions([
-        { name: '清明节超度', date: '04-05', cycles: 7 },
-        { name: '观音诞辰祈福', date: '03-19', cycles: 3 },
-        { name: '消灾法会', date: '03-15', cycles: 21 },
-      ])
     } finally {
       setLoading(false)
     }
@@ -79,7 +92,7 @@ export default function BaichanPage() {
     try {
       await recordsApi.createRecord({
         templateId: template.templateId,
-        practiceType: 'baichan',
+        practiceType: template.practiceType || 'baichan',
         practiceName: template.name,
         quantity: template.quantity,
         unit: template.unit,
@@ -113,13 +126,44 @@ export default function BaichanPage() {
     )
   }
 
+  // 未登录时显示引导
+  if (!storage.getToken()) {
+    return (
+      <div className="px-4 py-4 space-y-4">
+        <div className="bg-gradient-to-br from-[#8b2323] to-[#a83232] rounded-2xl p-5 text-white">
+          <div className="flex items-center gap-3 mb-1">
+            <Heart className="w-6 h-6" />
+            <h1 className="text-xl font-bold">忏悔拜忏</h1>
+          </div>
+          <p className="text-sm opacity-90">至诚忏悔，消业增福</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-red-50 mx-auto flex items-center justify-center">
+            <Heart className="w-8 h-8 text-[#8b2323]" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">请先登录</h3>
+            <p className="text-sm text-gray-500">登录后可记录拜忏数据，开启智能功课</p>
+          </div>
+          <button
+            onClick={() => navigate('profile')}
+            className="w-full py-4 bg-gradient-to-r from-[#8b2323] to-[#a83232] text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
+          >
+            去登录
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-4 py-4 space-y-4">
       {/* 头部 */}
       <div className="bg-gradient-to-br from-[#8b2323] to-[#a83232] rounded-2xl p-5 text-white">
         <div className="flex items-center gap-3 mb-1">
           <Heart className="w-6 h-6" />
-          <h1 className="text-xl font-bold">拜忏修行</h1>
+          <h1 className="text-xl font-bold">忏悔拜忏</h1>
         </div>
         <p className="text-sm opacity-90">至诚忏悔，消业增福</p>
       </div>
@@ -131,7 +175,7 @@ export default function BaichanPage() {
           <span className="text-xs text-emerald-600 font-medium">智能功课模式</span>
         </div>
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-          选择拜忏模板 → 点击开始 → 自动倒计时 → 时间到即完成对应拜数
+          选择忏悔/拜忏模板 → 点击开始 → 自动倒计时 → 时间到即完成
         </p>
         {templates.length > 0 ? (
           <SmartCountdown
@@ -141,7 +185,7 @@ export default function BaichanPage() {
           />
         ) : (
           <div className="text-center py-8 text-gray-500">
-            <p>请先登录后使用修行功能</p>
+            <p>暂无拜忏模板</p>
           </div>
         )}
       </div>
